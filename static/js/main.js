@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const detailsPricing = document.getElementById('details-pricing');
     const removePricingBtn = document.getElementById('remove-pricing');
     
-    const generateBtn = document.getElementById('btn-generate');
     const resetBtn = document.getElementById('btn-reset');
     
     // Preview panel elements
@@ -240,6 +239,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     activateTab(report.id);
                 }
                 validateInputs();
+
+                // Check if all files have finished parsing
+                const allDone = reports.every(r => r.isParsed || r.error !== null);
+                if (allDone) {
+                    const anyParsed = reports.some(r => r.isParsed);
+                    if (anyParsed) {
+                        triggerReportGeneration();
+                    }
+                }
             })
             .catch(err => {
                 report.error = err.message;
@@ -259,6 +267,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 console.error(`Error parsing index ${index}:`, err);
                 validateInputs();
+
+                // Check if all files have finished parsing
+                const allDone = reports.every(r => r.isParsed || r.error !== null);
+                if (allDone) {
+                    const anyParsed = reports.some(r => r.isParsed);
+                    if (anyParsed) {
+                        triggerReportGeneration();
+                    }
+                }
             });
         });
     }
@@ -313,16 +330,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Track filename custom edits and update A4 page title
+    // Track filename custom edits and invalidate cached blobs
     outputFilenameInput.addEventListener('input', () => {
         if (activeReportIndex !== -1 && reports[activeReportIndex]) {
             reports[activeReportIndex].customFilename = outputFilenameInput.value.trim();
+            reports[activeReportIndex].blob = null; // invalidate compiled report
+            batchBlob = null; // invalidate compiled zip
         }
     });
 
     enableHeaderCheckbox.addEventListener('change', () => {
-        if (activeReportIndex !== -1) {
-            updateDocumentPreview();
+        reports.forEach(r => r.blob = null);
+        batchBlob = null;
+        if (reports.length > 0) {
+            triggerReportGeneration();
         }
     });
 
@@ -382,8 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // State loaders & validation
     function validateInputs() {
-        const isValid = reports.length > 0 && reports.every(r => r.isParsed);
-        generateBtn.disabled = !isValid;
+        // Automatic immediate processing, no manual validate buttons needed
     }
 
     function setLoadingState(isLoading) {
@@ -397,7 +417,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetPreviewPanel() {
         previewPanel.classList.remove('show-preview');
         previewPanel.classList.add('hidden-preview');
-        generateBtn.disabled = true;
         timelineBox.classList.add('hidden');
         reports = [];
         activeReportIndex = -1;
@@ -418,16 +437,16 @@ document.addEventListener('DOMContentLoaded', () => {
         btnDownloadAllZip.classList.add('hidden');
     }
 
-    // Trigger Docx compilation (ZIP batch vs Single docx)
-    generateBtn.addEventListener('click', () => {
+    // Trigger Docx compilation (ZIP batch vs Single docx) automatically
+    function triggerReportGeneration() {
         if (reports.length === 0) return;
 
         // Display progress timeline log
         timelineBox.classList.remove('hidden');
-        generateBtn.disabled = true;
         
-        generateBtn.querySelector('.btn-text').classList.add('hidden');
-        generateBtn.querySelector('.btn-spinner').classList.remove('hidden');
+        // Hide/disable download buttons while compiling
+        btnDownloadSingle.disabled = true;
+        btnDownloadAllZip.classList.add('hidden');
 
         setStepState(step1, 'loading', 'Mengunggah & menganalisis file Excel...');
         setStepState(step3, 'pending', 'Menyusun layout tabel & kompilasi file DOCX...');
@@ -476,16 +495,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 
                 updateDocumentPreview();
-                resetGenerateButtonState();
-                
-                // Automatically download the batch ZIP
-                btnDownloadAllZip.click();
             })
             .catch(err => {
                 console.error(err);
                 alert(`Gagal membuat dokumen batch:\n${err.message}`);
                 setErrorStepState(err.message);
-                resetGenerateButtonState();
             });
         } else {
             // Single report generation
@@ -516,21 +530,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Refresh preview
                 updateDocumentPreview();
-                
-                // Trigger download
-                btnDownloadSingle.disabled = false;
-                btnDownloadSingle.click();
-                
-                resetGenerateButtonState();
             })
             .catch(err => {
                 console.error(err);
                 alert(`Gagal memproses dokumen:\n${err.message}`);
                 setErrorStepState(err.message);
-                resetGenerateButtonState();
             });
         }
-    });
+    }
 
     // Individual "Unduh DOCX" Button handler
     btnDownloadSingle.addEventListener('click', () => {
@@ -587,7 +594,43 @@ document.addEventListener('DOMContentLoaded', () => {
         if (batchBlob) {
             triggerFileDownload(batchBlob, 'sygma_chatbot_reports.zip');
         } else {
-            alert('Silakan klik tombol "Generate Laporan" terlebih dahulu untuk membuat berkas ZIP.');
+            // Compile on the fly
+            btnDownloadAllZip.disabled = true;
+            btnDownloadAllZip.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Downloading ZIP...';
+            
+            const formData = new FormData();
+            reports.forEach(r => {
+                formData.append('usage_files', r.file);
+                formData.append('custom_filenames', r.customFilename || r.file.name.replace('.xlsx', '.docx'));
+            });
+            if (selectedPricingFile) {
+                formData.append('pricing_file', selectedPricingFile);
+            }
+            formData.append('enable_header', enableHeaderCheckbox.checked);
+
+            fetch('/api/generate-batch', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(err => {
+                        throw new Error(err.error || 'Gagal download ZIP');
+                    });
+                }
+                return res.blob();
+            })
+            .then(blob => {
+                batchBlob = blob;
+                triggerFileDownload(blob, 'sygma_chatbot_reports.zip');
+                btnDownloadAllZip.disabled = false;
+                btnDownloadAllZip.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Unduh Semua (ZIP)';
+            })
+            .catch(err => {
+                btnDownloadAllZip.disabled = false;
+                btnDownloadAllZip.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Unduh Semua (ZIP)';
+                alert(`Gagal download ZIP:\n${err.message}`);
+            });
         }
     });
 
@@ -616,12 +659,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 setStepState(item, 'error', `Gagal: ${message}`);
             }
         });
-    }
-
-    function resetGenerateButtonState() {
-        generateBtn.disabled = false;
-        generateBtn.querySelector('.btn-text').classList.remove('hidden');
-        generateBtn.querySelector('.btn-spinner').classList.add('hidden');
     }
 
     function setStepState(stepElement, state, text) {
