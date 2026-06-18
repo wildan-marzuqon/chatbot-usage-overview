@@ -660,6 +660,7 @@ def compile_docx(output_path, data, gemini_content, logo_path, enable_header=Tru
         ("Total Output Tokens", format_id(data['output_tokens']), "Jumlah token output yang dihasilkan oleh model AI.")
     ]
 
+    headers_usage = ["Parameter Penggunaan", "Jumlah / Volume", "Keterangan"]
     hdr_row = table_usage.rows[0]
     for idx, text in enumerate(headers_usage):
         cell = hdr_row.cells[idx]

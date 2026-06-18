@@ -77,10 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let monthYear = "Report";
         if (period) {
             const parts = period.split(/\s+/);
-            if (parts.length >= 6) {
-                let m = parts[4].toLowerCase();
-                let y = parts[5];
-                let mInd = monthTranslations[m] || parts[4];
+            if (parts.length >= 7) {
+                let m = parts[5].toLowerCase();
+                let y = parts[6];
+                let mInd = monthTranslations[m] || parts[5];
                 monthYear = `${mInd} ${y}`;
             } else {
                 for (let word of parts) {

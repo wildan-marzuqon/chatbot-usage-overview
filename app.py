@@ -110,12 +110,19 @@ def generate_report():
                 if not download_name.endswith('.docx'):
                     download_name += '.docx'
             else:
-                dept_slug = parsed_data['dept_name'].lower().replace(" ", "_")
+                dept_name = parsed_data['dept_name']
                 period_parts = parsed_data['period'].split()
-                month_year = "report"
-                if len(period_parts) >= 6:
-                    month_year = f"{period_parts[4].lower()}_{period_parts[5]}"
-                download_name = f"usage_chatbot_{dept_slug}_{month_year}.docx"
+                month_year = "Report"
+                if len(period_parts) >= 7:
+                    months_id = {
+                        "january": "Januari", "february": "Februari", "march": "Maret", "april": "April",
+                        "may": "Mei", "june": "Juni", "july": "Juli", "august": "Agustus",
+                        "september": "September", "october": "Oktober", "november": "November", "december": "Desember"
+                    }
+                    m_lower = period_parts[5].lower()
+                    m_id = months_id.get(m_lower, period_parts[5])
+                    month_year = f"{m_id} {period_parts[6]}"
+                download_name = f"{dept_name} Usage Chatbot Report - {month_year}.docx"
             
             return send_file(
                 out_docx_path,
@@ -196,12 +203,19 @@ def generate_batch():
                             filename += '.docx'
                     else:
                         # automatic naming fallback
-                        dept_slug = parsed_data['dept_name'].replace("/", "_").replace("\\", "_")
+                        dept_name = parsed_data['dept_name']
                         period_parts = parsed_data['period'].split()
-                        month_year = "report"
-                        if len(period_parts) >= 6:
-                            month_year = f"{period_parts[4]}_{period_parts[5]}"
-                        filename = f"{dept_slug} Usage Chatbot Report - {month_year}.docx"
+                        month_year = "Report"
+                        if len(period_parts) >= 7:
+                            months_id = {
+                                "january": "Januari", "february": "Februari", "march": "Maret", "april": "April",
+                                "may": "Mei", "june": "Juni", "july": "Juli", "august": "Agustus",
+                                "september": "September", "october": "Oktober", "november": "November", "december": "Desember"
+                            }
+                            m_lower = period_parts[5].lower()
+                            m_id = months_id.get(m_lower, period_parts[5])
+                            month_year = f"{m_id} {period_parts[6]}"
+                        filename = f"{dept_name} Usage Chatbot Report - {month_year}.docx"
                         
                     zipf.write(out_docx_path, arcname=filename)
                     
