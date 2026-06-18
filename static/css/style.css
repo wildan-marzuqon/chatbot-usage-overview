@@ -984,3 +984,111 @@ input:checked + .slider:before {
 .text-warning { color: var(--color-warning); }
 .text-danger { color: var(--color-danger); }
 .text-muted { color: var(--text-muted); }
+
+/* Document A4 Preview Rendering Page */
+.document-preview-wrapper {
+    background: #e2e8f0;
+    padding: 2rem 1.5rem;
+    overflow: auto;
+    max-height: 580px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    position: relative;
+}
+
+.document-page {
+    background: #ffffff;
+    width: 790px;
+    min-height: 1118px;
+    padding: 2.5cm;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    color: #000000;
+    font-family: 'Arial', sans-serif;
+    line-height: 1.4;
+    text-align: left;
+    margin: 0 auto;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.doc-title {
+    text-align: center;
+    font-size: 14pt;
+    font-weight: bold;
+    color: #1f4e79;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    font-family: 'Arial', sans-serif;
+}
+
+.doc-meta-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    font-size: 9.5pt;
+    font-family: 'Arial', sans-serif;
+}
+
+.doc-meta-table td {
+    padding: 3px 5px;
+    border: none !important;
+    color: #000 !important;
+}
+
+.doc-section-title {
+    font-size: 11pt;
+    font-weight: bold;
+    color: #1f4e79;
+    margin-top: 15px;
+    margin-bottom: 8px;
+    font-family: 'Arial', sans-serif;
+}
+
+.doc-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    font-size: 9pt;
+    font-family: 'Arial', sans-serif;
+}
+
+.doc-data-table th, .doc-data-table td {
+    border: 1px solid #d3d3d3 !important;
+    padding: 6px 8px !important;
+    text-align: left;
+    color: #000 !important;
+}
+
+.doc-data-table th {
+    background-color: #1f4e79 !important;
+    color: #ffffff !important;
+    font-weight: bold;
+    text-align: center;
+}
+
+.doc-data-table tr:nth-child(even) {
+    background-color: #f2f5f8 !important;
+}
+
+.doc-bullet-list {
+    margin-left: 20px;
+    margin-bottom: 15px;
+    list-style-type: disc;
+}
+
+.doc-bullet-item {
+    font-size: 10pt;
+    margin-bottom: 5px;
+    display: list-item;
+    color: #000;
+}
+
+/* Extra button utilities */
+.btn-xs {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.775rem;
+    border-radius: 6px;
+}

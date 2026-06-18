@@ -35,35 +35,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // Preview panel elements
     const previewPanel = document.getElementById('preview-panel');
     const previewTabsContainer = document.getElementById('preview-tabs-container');
-    const metaDept = document.getElementById('meta-dept');
-    const metaPeriod = document.getElementById('meta-period');
-    const metaClient = document.getElementById('meta-client');
-    
-    const statChat = document.getElementById('stat-chat');
-    const statBilling = document.getElementById('stat-billing');
-    const statInput = document.getElementById('stat-input');
-    const statOutput = document.getElementById('stat-output');
-    
-    const statOverPct = document.getElementById('stat-over-pct');
-    const statOverCount = document.getElementById('stat-over-count');
-    const chatSessTotal = document.querySelector('.chat-sess-total');
-    const statAvgBill = document.getElementById('stat-avg-bill');
-    
     const outputFilenameInput = document.getElementById('output-filename');
+    
+    // Preview toolbar and zoom controls
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    const btnZoomReset = document.getElementById('btn-zoom-reset');
+    const zoomLevelText = document.getElementById('zoom-level-text');
+    
+    const btnDownloadSingle = document.getElementById('btn-download-single');
+    const btnDownloadAllZip = document.getElementById('btn-download-all-zip');
+    
+    const documentPage = document.getElementById('document-page');
+    const documentPreviewWrapper = document.getElementById('document-preview-wrapper');
     
     // Timeline & Download area
     const timelineBox = document.getElementById('generation-timeline');
     const step1 = document.getElementById('step-1');
     const step2 = document.getElementById('step-2');
     const step3 = document.getElementById('step-3');
-    const downloadArea = document.getElementById('download-area');
-    const btnDownload = document.getElementById('btn-download');
     
     // State variables
-    let reports = []; // elements: { id, file, parsedData, customFilename: '', isParsed: false, error: null }
+    let reports = []; // elements: { id, file, parsedData, customFilename: '', isParsed: false, error: null, blob: null, aiContent: null }
     let selectedPricingFile = null;
     let activeReportIndex = -1;
     let batchBlob = null; // store zip blob if generated in batch
+    let zoomLevel = 1.0;
     
     const monthTranslations = {
         'january': 'Januari', 'february': 'Februari', 'march': 'Maret', 'april': 'April',
@@ -281,7 +278,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 parsedData: null,
                 customFilename: '',
                 isParsed: false,
-                error: null
+                error: null,
+                blob: null,
+                aiContent: null
             };
             reports.push(report);
             
@@ -324,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderTabButtons();
             const firstParsedIdx = reports.findIndex(r => r.isParsed);
             if (firstParsedIdx !== -1) {
-                activateTab(firstParsedIdx);
+                activateTab(reports[firstParsedIdx].id);
             }
         }
         validateInputs();
@@ -334,7 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function triggerExcelParses() {
         previewPanel.classList.remove('hidden-preview');
         previewPanel.classList.add('show-preview');
-        downloadArea.classList.add('hidden');
         timelineBox.classList.add('hidden');
         renderTabButtons();
         
@@ -381,7 +379,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // If no active index is set yet, show this parsed item
                 if (activeReportIndex === -1) {
-                    setLoadingState(false);
                     activateTab(report.id);
                 }
                 validateInputs();
@@ -413,10 +410,13 @@ document.addEventListener('DOMContentLoaded', () => {
         previewTabsContainer.innerHTML = '';
         if (reports.length <= 1) {
             previewTabsContainer.classList.add('hidden');
+            btnDownloadAllZip.classList.add('hidden');
             return;
         }
         
         previewTabsContainer.classList.remove('hidden');
+        btnDownloadAllZip.classList.remove('hidden');
+        
         reports.forEach(report => {
             const btn = document.createElement('button');
             btn.type = 'button';
@@ -449,15 +449,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (report.isParsed && report.parsedData) {
-            populateStats(report.parsedData);
             outputFilenameInput.value = report.customFilename;
+            updateDocumentPreview();
+            btnDownloadSingle.disabled = false;
         }
     }
 
-    // Track filename custom edits
+    // Track filename custom edits and update A4 page title
     outputFilenameInput.addEventListener('input', () => {
         if (activeReportIndex !== -1 && reports[activeReportIndex]) {
             reports[activeReportIndex].customFilename = outputFilenameInput.value.trim();
+        }
+    });
+
+    enableHeaderCheckbox.addEventListener('change', () => {
+        if (activeReportIndex !== -1) {
+            updateDocumentPreview();
         }
     });
 
@@ -531,45 +538,70 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setLoadingState(isLoading) {
-        const text = isLoading ? 'Loading...' : '-';
-        metaDept.textContent = text;
-        metaPeriod.textContent = text;
-        metaClient.textContent = text;
-        statChat.textContent = text;
-        statBilling.textContent = text;
-        statInput.textContent = text;
-        statOutput.textContent = text;
-        statOverPct.textContent = '0%';
-        statOverCount.textContent = '0';
-        chatSessTotal.textContent = '0';
-        statAvgBill.textContent = '0.0';
-    }
-
-    function populateStats(data) {
-        metaDept.textContent = data.dept_name;
-        metaPeriod.textContent = data.period;
-        metaClient.textContent = data.client_name;
-        
-        statChat.textContent = formatNumber(data.chat_sessions);
-        statBilling.textContent = formatNumber(data.billing_sessions);
-        statInput.textContent = formatNumber(data.input_tokens);
-        statOutput.textContent = formatNumber(data.output_tokens);
-        
-        statOverPct.textContent = `${data.over_billing_pct.toFixed(1)}%`;
-        statOverCount.textContent = formatNumber(data.over_billing_count);
-        chatSessTotal.textContent = formatNumber(data.chat_sessions);
-        statAvgBill.textContent = data.avg_billing_per_chat.toFixed(2);
+        if (isLoading) {
+            documentPage.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; color: var(--text-secondary);">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--color-primary); margin-bottom: 1rem;"></i>
+                    <span style="font-weight: 500;">Menganalisis file Excel...</span>
+                </div>
+            `;
+        }
     }
 
     function resetPreviewPanel() {
         previewPanel.classList.remove('show-preview');
         previewPanel.classList.add('hidden-preview');
         generateBtn.disabled = true;
-        downloadArea.classList.add('hidden');
         timelineBox.classList.add('hidden');
         reports = [];
         activeReportIndex = -1;
+        batchBlob = null;
+        zoomLevel = 1.0;
+        applyZoom();
+        documentPage.innerHTML = `
+            <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                Menunggu unggahan file Excel...
+            </div>
+        `;
+        btnDownloadSingle.disabled = true;
+        btnDownloadAllZip.classList.add('hidden');
     }
+
+    // Zoom Controls Implementation
+    function applyZoom() {
+        if (!documentPage) return;
+        if ('zoom' in documentPage.style) {
+            documentPage.style.zoom = zoomLevel;
+            documentPage.style.transform = '';
+            documentPage.style.margin = '0 auto';
+        } else {
+            // Firefox transform scaling fallback
+            documentPage.style.transform = `scale(${zoomLevel})`;
+            documentPage.style.transformOrigin = 'top center';
+            const heightDiff = (zoomLevel - 1) * 1118;
+            documentPage.style.marginBottom = `${heightDiff}px`;
+        }
+        zoomLevelText.textContent = `${Math.round(zoomLevel * 100)}%`;
+    }
+    
+    btnZoomIn.addEventListener('click', () => {
+        if (zoomLevel < 1.8) {
+            zoomLevel += 0.1;
+            applyZoom();
+        }
+    });
+    
+    btnZoomOut.addEventListener('click', () => {
+        if (zoomLevel > 0.5) {
+            zoomLevel -= 0.1;
+            applyZoom();
+        }
+    });
+    
+    btnZoomReset.addEventListener('click', () => {
+        zoomLevel = 1.0;
+        applyZoom();
+    });
 
     // Trigger Docx compilation (ZIP batch vs Single docx)
     generateBtn.addEventListener('click', () => {
@@ -577,7 +609,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Display progress timeline log
         timelineBox.classList.remove('hidden');
-        downloadArea.classList.add('hidden');
         generateBtn.disabled = true;
         
         generateBtn.querySelector('.btn-text').classList.add('hidden');
@@ -596,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setStepState(step2, 'success', 'Analisis LLM dilewati (Menggunakan offline template).');
                 setStepState(step3, 'loading', 'Menyusun layout tabel & kompilasi file DOCX...');
             }
-        }, 1200);
+        }, 1000);
 
         const provider = document.querySelector('input[name="ai-provider"]:checked').value;
         const modelName = provider === 'gemini' ? geminiModelSelect.value : openrouterModelInput.value.trim();
@@ -629,6 +660,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error(err.error || 'Gagal generate batch');
                     });
                 }
+                
+                // Parse the serialized AI contents header
+                const aiHeader = res.headers.get('X-AI-Content');
+                if (aiHeader) {
+                    try {
+                        const allAiContent = JSON.parse(aiHeader);
+                        allAiContent.forEach((content, idx) => {
+                            if (reports[idx]) {
+                                reports[idx].aiContent = content;
+                            }
+                        });
+                    } catch (e) {
+                        console.error('Error parsing AI content header:', e);
+                    }
+                }
+                
                 if (useAiToggle.checked) {
                     setStepState(step2, 'success', 'Provider AI berhasil merangkum insight untuk seluruh divisi.');
                 }
@@ -639,22 +686,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 batchBlob = blob;
                 setStepState(step3, 'success', `Sukses! ${reports.length} Laporan DOCX berhasil dikompilasi ke dalam ZIP.`);
                 
-                // Configure ZIP download link
-                const url = window.URL.createObjectURL(blob);
-                btnDownload.href = url;
-                btnDownload.setAttribute('download', 'sygma_chatbot_reports.zip');
-                btnDownload.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Unduh Semua Laporan (.zip)';
+                // Expose collective ZIP button
+                btnDownloadAllZip.classList.remove('hidden');
                 
-                downloadArea.classList.remove('hidden');
+                // Refresh A4 preview of active report with AI details
+                updateDocumentPreview();
                 
-                // Reset button state
-                generateBtn.disabled = false;
-                generateBtn.querySelector('.btn-text').classList.remove('hidden');
-                generateBtn.querySelector('.btn-spinner').classList.add('hidden');
+                resetGenerateButtonState();
+                
+                // Automatically download the batch ZIP
+                btnDownloadAllZip.click();
             })
             .catch(err => {
                 console.error(err);
-                alert(`Gagal membuat dokumen batch: ${err.message}`);
+                alert(`Gagal membuat dokumen batch:\n${err.message}`);
                 setErrorStepState(err.message);
                 resetGenerateButtonState();
             });
@@ -684,6 +729,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error(err.error || 'Gagal generate laporan');
                     });
                 }
+                
+                // Parse custom header
+                const aiHeader = res.headers.get('X-AI-Content');
+                if (aiHeader) {
+                    try {
+                        activeReport.aiContent = JSON.parse(aiHeader);
+                    } catch (e) {
+                        console.error('Error parsing AI content header:', e);
+                    }
+                }
+                
                 if (useAiToggle.checked) {
                     setStepState(step2, 'success', 'Provider AI berhasil merangkum cover letter & insight.');
                 }
@@ -691,27 +747,121 @@ document.addEventListener('DOMContentLoaded', () => {
                 return res.blob();
             })
             .then(blob => {
+                activeReport.blob = blob;
                 setStepState(step3, 'success', 'Laporan Word (.docx) berhasil dibuat dengan sempurna.');
                 
-                const url = window.URL.createObjectURL(blob);
-                btnDownload.href = url;
+                // Refresh preview with AI insights
+                updateDocumentPreview();
                 
-                let filename = activeReport.customFilename;
-                if (!filename.endsWith('.docx')) filename += '.docx';
-                btnDownload.setAttribute('download', filename);
-                btnDownload.innerHTML = '<i class="fa-solid fa-download"></i> Unduh Laporan Ini (.docx)';
+                // Trigger download
+                btnDownloadSingle.disabled = false;
+                btnDownloadSingle.click();
                 
-                downloadArea.classList.remove('hidden');
                 resetGenerateButtonState();
             })
             .catch(err => {
                 console.error(err);
-                alert(`Gagal memproses dokumen: ${err.message}`);
+                alert(`Gagal memproses dokumen:\n${err.message}`);
                 setErrorStepState(err.message);
                 resetGenerateButtonState();
             });
         }
     });
+
+    // Individual "Unduh DOCX" Button handler
+    btnDownloadSingle.addEventListener('click', () => {
+        if (activeReportIndex === -1) return;
+        const report = reports[activeReportIndex];
+        if (!report || !report.isParsed) return;
+        
+        // If blob is already generated in state, trigger direct download
+        if (report.blob) {
+            triggerFileDownload(report.blob, report.customFilename);
+            return;
+        }
+        
+        // Else, generate the single report on the fly (offline fallback or with AI parameters)
+        btnDownloadSingle.disabled = true;
+        btnDownloadSingle.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Downloading...';
+        
+        const provider = document.querySelector('input[name="ai-provider"]:checked').value;
+        const modelName = provider === 'gemini' ? geminiModelSelect.value : openrouterModelInput.value.trim();
+        
+        const formData = new FormData();
+        formData.append('usage_file', report.file);
+        if (selectedPricingFile) {
+            formData.append('pricing_file', selectedPricingFile);
+        }
+        formData.append('use_ai', useAiToggle.checked);
+        formData.append('ai_provider', provider);
+        formData.append('api_key', apiKeyInput.value.trim());
+        formData.append('model_name', modelName);
+        formData.append('custom_prompt', customPromptTextarea.value.trim());
+        formData.append('enable_header', enableHeaderCheckbox.checked);
+        formData.append('custom_filename', report.customFilename);
+
+        fetch('/api/generate', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => {
+                    throw new Error(err.error || 'Gagal download docx');
+                });
+            }
+            // Parse headers if AI ran
+            const aiHeader = res.headers.get('X-AI-Content');
+            if (aiHeader) {
+                try {
+                    report.aiContent = JSON.parse(aiHeader);
+                } catch (e) {
+                    console.error('Error parsing AI content header:', e);
+                }
+            }
+            return res.blob();
+        })
+        .then(blob => {
+            report.blob = blob;
+            updateDocumentPreview();
+            triggerFileDownload(blob, report.customFilename);
+            btnDownloadSingle.disabled = false;
+            btnDownloadSingle.innerHTML = '<i class="fa-solid fa-download"></i> Unduh DOCX';
+        })
+        .catch(err => {
+            btnDownloadSingle.disabled = false;
+            btnDownloadSingle.innerHTML = '<i class="fa-solid fa-download"></i> Unduh DOCX';
+            alert(`Gagal download docx:\n${err.message}`);
+        });
+    });
+
+    // ZIP Download Button handler
+    btnDownloadAllZip.addEventListener('click', () => {
+        if (batchBlob) {
+            triggerFileDownload(batchBlob, 'sygma_chatbot_reports.zip');
+        } else {
+            alert('Silakan klik tombol "Generate Laporan" terlebih dahulu untuk membuat berkas ZIP.');
+        }
+    });
+
+    // General download trigger helper
+    function triggerFileDownload(blob, filename) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        
+        let dlName = filename;
+        if (!dlName.endsWith('.docx') && !dlName.endsWith('.zip')) {
+            dlName += '.docx';
+        }
+        
+        a.setAttribute('download', dlName);
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
 
     function setErrorStepState(message) {
         document.querySelectorAll('.timeline-item').forEach(item => {
@@ -777,4 +927,285 @@ document.addEventListener('DOMContentLoaded', () => {
         // Validate inputs (disables generate button)
         validateInputs();
     });
+
+    // Simulated A4 page renderer
+    function updateDocumentPreview() {
+        if (!documentPage || activeReportIndex === -1) return;
+        
+        const report = reports[activeReportIndex];
+        if (!report || !report.isParsed || !report.parsedData) {
+            documentPage.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-muted);">Menunggu data file Excel...</div>';
+            return;
+        }
+        
+        const data = report.parsedData;
+        const enableHeader = enableHeaderCheckbox.checked;
+        
+        // Get introduction and insights (either AI-generated or fallback)
+        const introduction = report.aiContent ? report.aiContent.introduction : getOfflineFallbackIntro(data);
+        const insights = report.aiContent ? report.aiContent.insights : getOfflineFallbackInsights(data);
+        
+        let headerHtml = '';
+        if (enableHeader) {
+            headerHtml = `
+                <div class="doc-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1f4e79; padding-bottom: 10px; margin-bottom: 15px;">
+                    <div style="font-family: 'Arial', sans-serif; font-size: 16pt; font-weight: bold; color: #f1c40f; letter-spacing: 1px;">ADIRA FINANCE</div>
+                    <div style="font-family: 'Arial', sans-serif; font-size: 8pt; color: #1f4e79; text-align: right; font-weight: bold; line-height: 1.2;">
+                        PT ADIRA DINAMIKA MULTI FINANCE TBK<br>
+                        <span style="font-weight: normal; color: #555;">Gedung Landmark Tower A, Jakarta</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Period mapping to Month Year
+        const parts = data.period.split(/\s+/);
+        let monthYear = "Report";
+        if (parts.length >= 7) {
+            let m = parts[5].toLowerCase();
+            let y = parts[6];
+            let mInd = monthTranslations[m] || parts[5];
+            monthYear = `${mInd} ${y}`;
+        }
+        
+        // Format dates simple id
+        const today = new Date();
+        const monthsIdList = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+        const todayStr = `${today.getDate()} ${monthsIdList[today.getMonth()]} ${today.getFullYear()}`;
+        
+        // Build metadata table
+        const metaTableHtml = `
+            <table class="doc-meta-table">
+                <tr>
+                    <td style="width: 20%; font-weight: bold;">Bulan Laporan</td>
+                    <td style="width: 40%;">: ${monthYear}</td>
+                    <td style="width: 15%; font-weight: bold;">Tanggal</td>
+                    <td style="width: 25%;">: ${todayStr}</td>
+                </tr>
+                <tr>
+                    <td style="font-weight: bold;">Perihal</td>
+                    <td>: Laporan Ringkasan Penggunaan AI Chatbot ${data.dept_name}</td>
+                    <td style="font-weight: bold;">Kepada</td>
+                    <td>: Yth. Tim ${data.dept_name}</td>
+                </tr>
+                <tr>
+                    <td style="font-weight: bold;">Periode</td>
+                    <td>: ${data.period}</td>
+                    <td></td>
+                    <td>: ${data.client_name}</td>
+                </tr>
+            </table>
+        `;
+        
+        // Section 1 Table Rows
+        const usageRowsHtml = `
+            <table class="doc-data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">Parameter Penggunaan</th>
+                        <th style="width: 20%;">Jumlah / Volume</th>
+                        <th style="width: 50%;">Keterangan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="font-weight: bold;">Chat Sessions</td>
+                        <td style="text-align: center;">${formatNumber(data.chat_sessions)}</td>
+                        <td>Sesi percakapan unik yang diinisiasi oleh pengguna.</td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold;">Billing Sessions</td>
+                        <td style="text-align: center;">${formatNumber(data.billing_sessions)}</td>
+                        <td>Sesi billing percakapan.</td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold;">Total Input Tokens</td>
+                        <td style="text-align: center;">${formatNumber(data.input_tokens)}</td>
+                        <td>Jumlah token input yang dikirim ke model AI.</td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold;">Total Output Tokens</td>
+                        <td style="text-align: center;">${formatNumber(data.output_tokens)}</td>
+                        <td>Jumlah token output yang dihasilkan oleh model AI.</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+        
+        // Section 2 Table Rows (LLM Limits)
+        let llmLimitsHtml = '';
+        if (data.pricing_rules && data.pricing_rules.length > 0) {
+            let rowsHtml = '';
+            data.pricing_rules.forEach(rule => {
+                rowsHtml += `
+                    <tr>
+                        <td style="font-weight: bold;">${rule.model || '-'}</td>
+                        <td style="text-align: center;">${rule.window || '-'}</td>
+                        <td style="text-align: right;">${formatNumber(rule.input)}</td>
+                        <td style="text-align: right;">${formatNumber(rule.output)}</td>
+                    </tr>
+                `;
+            });
+            llmLimitsHtml = `
+                <table class="doc-data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40%;">Model AI (Plan)</th>
+                            <th style="width: 20%;">Durasi Sesi</th>
+                            <th style="width: 20%;">Limit Input</th>
+                            <th style="width: 20%;">Limit Output</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        // Section 3 Over-billing stats
+        const pctTime = data.over_billing_count ? (data.count_time / data.over_billing_count * 100).toFixed(1) : '0.0';
+        const pctOutput = data.over_billing_count ? (data.count_output / data.over_billing_count * 100).toFixed(1) : '0.0';
+        const pctBoth = data.over_billing_count ? (data.count_both / data.over_billing_count * 100).toFixed(1) : '0.0';
+        
+        const overBillingTableHtml = `
+            <table class="doc-data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50%;">Faktor Penyebab Over-billing</th>
+                        <th style="width: 25%;">Jumlah Sesi Chat</th>
+                        <th style="width: 25%;">Persentase (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Batas Waktu Sesi Terlampaui</td>
+                        <td style="text-align: center;">${formatNumber(data.count_time)}</td>
+                        <td style="text-align: center;">${pctTime}%</td>
+                    </tr>
+                    <tr>
+                        <td>Limit Token Output Terlampaui</td>
+                        <td style="text-align: center;">${formatNumber(data.count_output)}</td>
+                        <td style="text-align: center;">${pctOutput}%</td>
+                    </tr>
+                    <tr>
+                        <td>Kombinasi Waktu & Token Terlampaui</td>
+                        <td style="text-align: center;">${formatNumber(data.count_both)}</td>
+                        <td style="text-align: center;">${pctBoth}%</td>
+                    </tr>
+                    <tr style="background-color: #EAF2F8; font-weight: bold;">
+                        <td>TOTAL SESI OVER-BILLING</td>
+                        <td style="text-align: center;">${formatNumber(data.over_billing_count)}</td>
+                        <td style="text-align: center;">100.0%</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+        
+        // Build insights list items
+        let insightsHtml = '';
+        insights.forEach(ins => {
+            // Remove markdown bullets or numbers if any
+            let parsedIns = ins.replace('\n', ' ').trim();
+            if (parsedIns.startsWith('* ')) parsedIns = parsedIns.substring(2);
+            else if (parsedIns.startsWith('- ')) parsedIns = parsedIns.substring(2);
+            else if (/^\d+\.\s/.test(parsedIns)) parsedIns = parsedIns.replace(/^\d+\.\s/, '');
+            
+            // Parse bold elements inside insights
+            const parts = parsedIns.split('**');
+            let textIns = '';
+            parts.forEach((p, idx) => {
+                if (idx % 2 === 1) {
+                    textIns += `<strong style="font-weight: bold;">${p}</strong>`;
+                } else {
+                    textIns += p;
+                }
+            });
+            insightsHtml += `<li class="doc-bullet-item" style="font-size: 10pt; margin-bottom: 6px; line-height: 1.4;">${textIns}</li>`;
+        });
+        
+        // Parse introduction bold elements
+        let introText = introduction;
+        const introParts = introText.split('**');
+        let finalIntro = '';
+        introParts.forEach((p, idx) => {
+            if (idx % 2 === 1) {
+                finalIntro += `<strong style="font-weight: bold;">${p}</strong>`;
+            } else {
+                finalIntro += p;
+            }
+        });
+        
+        // Render A4 page
+        documentPage.innerHTML = `
+            ${headerHtml}
+            <div class="doc-title">LAPORAN RINGKASAN PENGGUNAAN LAYANAN AI CHATBOT</div>
+            ${metaTableHtml}
+            
+            <p style="font-size: 10pt; margin-bottom: 15px; line-height: 1.4;">
+                <strong style="font-weight: bold;">Dengan hormat,</strong><br><br>${finalIntro}
+            </p>
+            
+            <div class="doc-section-title">1. Ringkasan Volume Penggunaan (Usage Overview)</div>
+            ${usageRowsHtml}
+            
+            <div class="doc-section-title">2. Acuan Batas Plan & Model Layanan AI Chatbot</div>
+            ${llmLimitsHtml}
+            
+            <div class="doc-section-title">3. Ringkasan Analisis Sesi dengan Over-billing</div>
+            <p style="font-size: 10pt; margin-bottom: 10px; line-height: 1.4;">
+                Secara default, satu Chat Session dihitung sebagai satu Billing Session. Namun, sesi billing dapat bertambah (over-billing) apabila percakapan melebihi batas waktu sesi atau akumulasi token output menyentuh kapasitas model plan. Dari total <strong>${formatNumber(data.chat_sessions)} sesi</strong> percakapan unik, terdapat <strong>${formatNumber(data.over_billing_count)} sesi</strong> (${data.over_billing_pct.toFixed(1)}%) yang mengalami over-billing. Berikut adalah ringkasan penyebab over-billing:
+            </p>
+            ${overBillingTableHtml}
+            
+            <div class="doc-section-title">4. Ringkasan Analisis & Insight Penggunaan</div>
+            <ul class="doc-bullet-list" style="margin-left: 20px; margin-bottom: 15px; list-style-type: disc;">
+                ${insightsHtml}
+            </ul>
+            
+            <div class="doc-section-title">5. Keterangan Lampiran</div>
+            <p style="font-size: 9.5pt; color: #555; line-height: 1.4; margin-bottom: 25px;">
+                1. Lampiran I (Chat Session): Histori chat lengkap per sesi percakapan unik.<br>
+                2. Lampiran II (Billing Session): Log detail per billing window interval untuk audit kepatuhan biaya.
+            </p>
+            
+            <!-- Sign-off layout -->
+            <table style="width: 100%; font-size: 9.5pt; margin-top: 30px; border-collapse: collapse; border: none;">
+                <tr style="border: none;">
+                    <td style="width: 50%; border: none; padding: 0;">
+                        Disetujui oleh,<br>
+                        <strong>PT Adira Dinamika Multi Finance Tbk</strong>
+                        <br><br><br><br>
+                        ___________________________<br>
+                        <strong>Head of Division / Department</strong>
+                    </td>
+                    <td style="width: 50%; border: none; padding: 0; text-align: right;">
+                        Dipersiapkan oleh,<br>
+                        <strong>PT Cakra Tekno Nusantara</strong>
+                        <br><br><br><br>
+                        ___________________________<br>
+                        <strong>SYGMA AI Support Team</strong>
+                    </td>
+                </tr>
+            </table>
+        `;
+    }
+
+    function getOfflineFallbackIntro(data) {
+        return `Merujuk pada implementasi layanan AI Chatbot pada aplikasi SYGMA, bersama ini kami sampaikan laporan ringkasan penggunaan layanan untuk divisi **${data.dept_name}** pada periode **${data.period}**. Laporan ini merupakan ikhtisar volume penggunaan, aktivitas interaksi chatbot, serta analisis detail billing session.`;
+    }
+
+    function getOfflineFallbackInsights(data) {
+        const sorted_over = [...(data.over_billing_list || [])].sort((a,b) => b.bills_count - a.bills_count);
+        let longest_sessions_parts = [];
+        for (let i = 0; i < Math.min(3, sorted_over.length); i++) {
+            longest_sessions_parts.push(`UUID ${sorted_over[i].uuid.substring(0,8)}... (${sorted_over[i].bills_count} Billing Sessions)`);
+        }
+        const longest_sessions_str = longest_sessions_parts.length > 0 ? longest_sessions_parts.join(', ') : '-';
+        
+        return [
+            `Rata-rata Billing Session per Chat Session di divisi **${data.dept_name}** adalah **${data.avg_billing_per_chat.toFixed(2)} sesi**. Hal ini menandakan pola penggunaan interaktif dengan durasi percakapan melampaui batas awal sesi dasar.`,
+            `Sesi dengan over-billing terbanyak terjadi pada: **${longest_sessions_str}**. Hal ini menandakan adanya sesi konsultasi intensif berdurasi sangat panjang atau melampaui batas limit token output berulang kali.`
+        ];
+    }
 });

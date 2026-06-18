@@ -185,74 +185,8 @@
                 </div>
                 
                 <div class="preview-content">
-                    <!-- Extracted Metadata Header -->
-                    <div class="meta-preview-box">
-                        <div class="meta-row">
-                            <span class="meta-label">Divisi/Departemen:</span>
-                            <span class="meta-val" id="meta-dept">-</span>
-                        </div>
-                        <div class="meta-row">
-                            <span class="meta-label">Periode Laporan:</span>
-                            <span class="meta-val" id="meta-period">-</span>
-                        </div>
-                        <div class="meta-row">
-                            <span class="meta-label">Reseller/Client:</span>
-                            <span class="meta-val" id="meta-client">-</span>
-                        </div>
-                    </div>
-
-                    <!-- Usage Stats Grid -->
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-icon bg-blue-trans"><i class="fa-comments"></i></div>
-                            <div class="stat-info">
-                                <span class="stat-label">Chat Sessions</span>
-                                <span class="stat-value" id="stat-chat">0</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon bg-indigo-trans"><i class="fa-receipt"></i></div>
-                            <div class="stat-info">
-                                <span class="stat-label">Billing Sessions</span>
-                                <span class="stat-value" id="stat-billing">0</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon bg-green-trans"><i class="fa-arrow-right-to-bracket"></i></div>
-                            <div class="stat-info">
-                                <span class="stat-label">Total Input Tokens</span>
-                                <span class="stat-value" id="stat-input">0</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon bg-yellow-trans"><i class="fa-arrow-right-from-bracket"></i></div>
-                            <div class="stat-info">
-                                <span class="stat-label">Total Output Tokens</span>
-                                <span class="stat-value" id="stat-output">0</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Extra details (Overbilling rates) -->
-                    <div class="overbilling-alert-card">
-                        <div class="alert-header">
-                            <i class="fa-solid fa-triangle-exclamation text-warning"></i>
-                            <h3 class="alert-title">Indikator Over-billing</h3>
-                        </div>
-                        <div class="alert-body">
-                            <div class="alert-stat">
-                                <span class="alert-stat-value" id="stat-over-pct">0%</span>
-                                <span class="alert-stat-label">Sesi Mengalami Over-billing</span>
-                            </div>
-                            <div class="alert-details">
-                                <p>Total: <strong id="stat-over-count">0</strong> dari <strong class="chat-sess-total">0</strong> Chat Sessions.</p>
-                                <p>Rata-rata: <strong id="stat-avg-bill">0.0</strong> billing per chat.</p>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Filename Customization for Current File -->
-                    <div class="form-group filename-edit-group">
+                    <div class="form-group filename-edit-group" style="margin-bottom: 0.75rem;">
                         <label for="output-filename" class="form-label">
                             <span>Nama File Output (.docx)</span>
                             <span class="label-hint">Nama file kustom untuk divisi ini</span>
@@ -263,8 +197,32 @@
                         </div>
                     </div>
 
+                    <!-- Preview Toolbar (Zoom, Scroll, Downloads) -->
+                    <div class="preview-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; background: #f1f5f9; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.5rem;">
+                        <div class="zoom-controls" style="display: flex; align-items: center; gap: 0.35rem;">
+                            <button type="button" id="btn-zoom-out" class="btn btn-secondary btn-xs" style="padding: 0.25rem 0.5rem;" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
+                            <span id="zoom-level-text" style="font-size: 0.75rem; font-weight: 600; min-width: 2.5rem; text-align: center; color: var(--text-primary);">100%</span>
+                            <button type="button" id="btn-zoom-in" class="btn btn-secondary btn-xs" style="padding: 0.25rem 0.5rem;" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
+                            <button type="button" id="btn-zoom-reset" class="btn btn-secondary btn-xs" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;">Reset</button>
+                        </div>
+                        <div class="preview-actions" style="display: flex; gap: 0.35rem;">
+                            <button type="button" id="btn-download-single" class="btn btn-success btn-xs" style="padding: 0.35rem 0.75rem;" disabled><i class="fa-solid fa-download"></i> Unduh DOCX</button>
+                            <button type="button" id="btn-download-all-zip" class="btn btn-primary btn-xs hidden" style="padding: 0.35rem 0.75rem;"><i class="fa-solid fa-file-zipper"></i> Unduh Semua (ZIP)</button>
+                        </div>
+                    </div>
+
+                    <!-- Scrollable Document Preview Wrapper -->
+                    <div class="document-preview-wrapper" id="document-preview-wrapper" style="background: #e2e8f0; border-radius: 12px; border: 1px solid var(--border-color); padding: 1.5rem 1rem; overflow: auto; max-height: 550px; display: flex; justify-content: center; position: relative;">
+                        <!-- The simulated A4 paper page -->
+                        <div class="document-page" id="document-page">
+                            <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                                Menunggu unggahan file Excel...
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Progress timeline (shown during DOCX generation) -->
-                    <div class="timeline-box hidden" id="generation-timeline">
+                    <div class="timeline-box hidden" id="generation-timeline" style="margin-top: 1rem;">
                         <h3 class="timeline-title">Log Progres Pembuatan Dokumen</h3>
                         <ul class="timeline-list">
                             <li class="timeline-item" id="step-1">
@@ -280,19 +238,6 @@
                                 <span class="step-text">Menyusun layout tabel & kompilasi file DOCX...</span>
                             </li>
                         </ul>
-                    </div>
-
-                    <!-- Individual File Download Section -->
-                    <div class="download-card hidden" id="download-area">
-                        <div class="download-icon-box"><i class="fa-solid fa-circle-down animated-bounce"></i></div>
-                        <div class="download-info" style="flex: 1;">
-                            <h4 id="download-title">Laporan Anda Telah Siap!</h4>
-                            <p id="download-desc">File Word (.docx) berhasil dihasilkan dengan gaya persetujuan yang rapi.</p>
-                            <div class="download-buttons-row">
-                                <a href="#" id="btn-download" class="btn btn-success"><i class="fa-solid fa-download"></i> Unduh Laporan Ini (.docx)</a>
-                                <button type="button" id="btn-download-all" class="btn btn-primary hidden"><i class="fa-solid fa-file-zipper"></i> Unduh Semua (.zip)</button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </section>

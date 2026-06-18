@@ -450,8 +450,16 @@ def generate_gemini_insights(api_key, model_name, data, custom_prompt):
         }
         
         response = requests.post(url, headers=headers, json=payload, timeout=20)
-        response_json = response.json()
         
+        if response.status_code != 200:
+            try:
+                err_data = response.json()
+                msg = err_data.get('error', {}).get('message', 'Unknown error')
+            except:
+                msg = response.text
+            raise Exception(f"API Gemini mengembalikan status {response.status_code}: {msg}")
+            
+        response_json = response.json()
         text_response = response_json['candidates'][0]['content']['parts'][0]['text']
         cleaned_text = clean_json_response(text_response)
         parsed_res = json.loads(cleaned_text)
@@ -460,7 +468,8 @@ def generate_gemini_insights(api_key, model_name, data, custom_prompt):
             return parsed_res
     except Exception as e:
         print(f"Error calling Gemini API: {e}")
-    
+        raise Exception(f"Gagal menghubungi Gemini API: {str(e)}")
+        
     return get_offline_fallback(data)
 
 def generate_openrouter_insights(api_key, model_name, data, custom_prompt):
@@ -488,8 +497,16 @@ def generate_openrouter_insights(api_key, model_name, data, custom_prompt):
         }
         
         response = requests.post(url, headers=headers, json=payload, timeout=20)
-        response_json = response.json()
         
+        if response.status_code != 200:
+            try:
+                err_data = response.json()
+                msg = err_data.get('error', {}).get('message', 'Unknown error')
+            except:
+                msg = response.text
+            raise Exception(f"OpenRouter API mengembalikan status {response.status_code}: {msg}")
+            
+        response_json = response.json()
         text_response = response_json['choices'][0]['message']['content']
         cleaned_text = clean_json_response(text_response)
         parsed_res = json.loads(cleaned_text)
@@ -498,9 +515,8 @@ def generate_openrouter_insights(api_key, model_name, data, custom_prompt):
             return parsed_res
     except Exception as e:
         print(f"Error calling OpenRouter API: {e}")
-        if 'response_json' in locals():
-            print(f"OpenRouter response: {response_json}")
-    
+        raise Exception(f"Gagal menghubungi OpenRouter API: {str(e)}")
+        
     return get_offline_fallback(data)
 
 def compile_docx(output_path, data, gemini_content, logo_path, enable_header=True):

@@ -124,12 +124,16 @@ def generate_report():
                     month_year = f"{m_id} {period_parts[6]}"
                 download_name = f"{dept_name} Usage Chatbot Report - {month_year}.docx"
             
-            return send_file(
+            import json
+            response_file = send_file(
                 out_docx_path,
                 as_attachment=True,
                 download_name=download_name,
                 mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             )
+            response_file.headers['X-AI-Content'] = json.dumps(insights)
+            response_file.headers['Access-Control-Expose-Headers'] = 'X-AI-Content'
+            return response_file
             
         except Exception as e:
             import traceback
@@ -167,6 +171,7 @@ def generate_batch():
             
         zip_path = os.path.join(tmpdir, "sygma_chatbot_reports.zip")
         
+        batch_insights = []
         try:
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for idx, u_file in enumerate(usage_files):
@@ -190,6 +195,8 @@ def generate_batch():
                             insights = get_offline_fallback(parsed_data)
                     else:
                         insights = get_offline_fallback(parsed_data)
+                    
+                    batch_insights.append(insights)
                         
                     # Compile DOCX
                     out_docx_path = os.path.join(tmpdir, f"report_{idx}.docx")
@@ -219,12 +226,16 @@ def generate_batch():
                         
                     zipf.write(out_docx_path, arcname=filename)
                     
-            return send_file(
+            import json
+            response_file = send_file(
                 zip_path,
                 as_attachment=True,
                 download_name="sygma_chatbot_reports.zip",
                 mimetype='application/zip'
             )
+            response_file.headers['X-AI-Content'] = json.dumps(batch_insights)
+            response_file.headers['Access-Control-Expose-Headers'] = 'X-AI-Content'
+            return response_file
         except Exception as e:
             import traceback
             traceback.print_exc()
