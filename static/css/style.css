@@ -642,6 +642,17 @@ input:checked + .slider:before {
     background: #059669;
 }
 
+.btn-secondary {
+    background: #f1f5f9;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: #cbd5e1;
+    color: var(--text-primary);
+}
+
 .btn-block {
     width: 100%;
 }

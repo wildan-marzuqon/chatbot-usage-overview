@@ -397,6 +397,10 @@ Instruksi Tambahan dari Pengguna:
 Persyaratan Output:
 1. Tulis teks pengantar (introduction) yang formal, profesional, dan mengalir dalam Bahasa Indonesia. Paragraf ini merujuk ke implementasi layanan AI Chatbot SYGMA untuk divisi tersebut pada periode tersebut. Jangan gunakan placeholder.
 2. Tulis 2 poin insight (analisis mendalam) dalam Bahasa Indonesia. Poin pertama harus menganalisis rata-rata billing per chat session. Poin kedua menganalisis sesi over-billing terpanjang atau faktor utama penyebab over-billing.
+   - PENTING: Masing-masing dari 2 poin insight ini harus ditulis sebagai SATU paragraf utuh yang pendek/ringkas dan mengalir.
+   - DILARANG KERAS menggunakan format list (seperti 1., 2., a., b., dst) di dalam teks insight.
+   - DILARANG KERAS menggunakan tanda bullet (*, -) atau karakter ganti baris/newline (\\n) di dalam teks insight.
+   - Anda boleh menggunakan format tebal (seperti **Analisis Sesi:**) untuk memberi judul kecil di awal kalimat insight.
 3. Output harus berupa JSON valid dengan format:
 {{
   "introduction": "isi paragraf pengantar...",
@@ -637,8 +641,17 @@ def compile_docx(output_path, data, gemini_content, logo_path, enable_header=Tru
     # 4. Salutation & Introduction (Gemini generated)
     p_intro = doc.add_paragraph()
     set_para_spacing(p_intro, before_pt=0, after_pt=6)
-    r_intro = p_intro.add_run("Dengan hormat,\n\n" + gemini_content['introduction'])
-    format_run(r_intro, font_name="Arial", size_pt=10)
+    r_salut = p_intro.add_run("Dengan hormat,\n\n")
+    format_run(r_salut, font_name="Arial", size_pt=10)
+    
+    intro_parts = gemini_content['introduction'].split('**')
+    for idx, part in enumerate(intro_parts):
+        if not part:
+            continue
+        r = p_intro.add_run(part)
+        format_run(r, font_name="Arial", size_pt=10)
+        if idx % 2 == 1:
+            r.bold = True
 
     # 5. Section 1: Ringkasan Volume Penggunaan
     p_sec1 = doc.add_paragraph()
@@ -858,10 +871,29 @@ def compile_docx(output_path, data, gemini_content, logo_path, enable_header=Tru
     format_run(r, font_name="Arial", size_pt=11, color_rgb=RGBColor(31, 78, 121), bold=True)
 
     for ins in gemini_content['insights']:
+        # Clean the text: remove newlines, bullet signs, list numbers
+        cleaned_ins = ins.replace('\n', ' ').strip()
+        while '  ' in cleaned_ins:
+            cleaned_ins = cleaned_ins.replace('  ', ' ')
+        if cleaned_ins.startswith('* '):
+            cleaned_ins = cleaned_ins[2:]
+        elif cleaned_ins.startswith('- '):
+            cleaned_ins = cleaned_ins[2:]
+        elif cleaned_ins.startswith('1. ') or cleaned_ins.startswith('2. ') or cleaned_ins.startswith('3. ') or cleaned_ins.startswith('4. '):
+            cleaned_ins = cleaned_ins[3:]
+            
         p_ins = doc.add_paragraph(style='List Bullet')
         set_para_spacing(p_ins, before_pt=0, after_pt=3)
-        r = p_ins.add_run(ins)
-        format_run(r, font_name="Arial", size_pt=10)
+        
+        # Split by bold markers
+        parts = cleaned_ins.split('**')
+        for idx, part in enumerate(parts):
+            if not part:
+                continue
+            r = p_ins.add_run(part)
+            format_run(r, font_name="Arial", size_pt=10)
+            if idx % 2 == 1:
+                r.bold = True
 
     # 9. Section 5: Keterangan Lampiran & Penutup
     p_sec5 = doc.add_paragraph()

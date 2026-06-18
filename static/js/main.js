@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const customPromptTextarea = document.getElementById('custom-prompt');
     const charCounter = document.getElementById('char-counter');
     const generateBtn = document.getElementById('btn-generate');
+    const resetBtn = document.getElementById('btn-reset');
     
     // Preview panel elements
     const previewPanel = document.getElementById('preview-panel');
@@ -747,4 +748,33 @@ document.addEventListener('DOMContentLoaded', () => {
             stepElement.classList.add('text-danger');
         }
     }
+
+    // Reset all files and preview data
+    resetBtn.addEventListener('click', () => {
+        fileUsageInput.value = '';
+        filePricingInput.value = '';
+        
+        // Clear pricing UI
+        detailsPricing.style.display = 'none';
+        dropZonePricing.classList.remove('hidden');
+        
+        // Clear uploaded files list
+        uploadedFilesList.innerHTML = '';
+        
+        // Reset state
+        reports = [];
+        selectedPricingFile = null;
+        activeReportIndex = -1;
+        batchBlob = null;
+        
+        // Reset custom prompt
+        customPromptTextarea.value = '';
+        charCounter.textContent = '0 / 500 karakter';
+        
+        // Reset preview
+        resetPreviewPanel();
+        
+        // Validate inputs (disables generate button)
+        validateInputs();
+    });
 });

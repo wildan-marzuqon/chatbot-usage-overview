@@ -159,11 +159,16 @@
                     </div>
                 </div>
 
-                <!-- Action Button -->
-                <button type="button" id="btn-generate" class="btn btn-primary btn-block" disabled>
-                    <span class="btn-text"><i class="fa-solid fa-file-word"></i> Generate Laporan</span>
-                    <div class="btn-spinner hidden"><i class="fa-solid fa-circle-notch fa-spin"></i> Memproses...</div>
-                </button>
+                <!-- Action Buttons -->
+                <div class="action-buttons-row" style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+                    <button type="button" id="btn-generate" class="btn btn-primary" style="flex: 1;" disabled>
+                        <span class="btn-text"><i class="fa-solid fa-file-word"></i> Generate Laporan</span>
+                        <div class="btn-spinner hidden"><i class="fa-solid fa-circle-notch fa-spin"></i> Memproses...</div>
+                    </button>
+                    <button type="button" id="btn-reset" class="btn btn-secondary" style="flex-shrink: 0;" aria-label="Reset Data">
+                        <i class="fa-solid fa-rotate-left"></i> Reset
+                    </button>
+                </div>
             </section>
 
             <!-- Right Panel: Live Stats Preview and Download Output -->
