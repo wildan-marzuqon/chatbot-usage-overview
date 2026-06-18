@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYGMA AI Chatbot Report Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Background glowing shapes -->
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+
+    <header class="header">
+        <div class="header-container">
+            <div class="logo-area">
+                <span class="logo-icon"><i class="fa-solid fa-robot"></i></span>
+                <div>
+                    <h1 id="main-title">SYGMA Chatbot Report Generator</h1>
+                    <p class="subtitle">Platform Ringkasan Laporan Usage Bulanan AI Chatbot & Generator DOCX Otomatis</p>
+                </div>
+            </div>
+            <span class="badge"><i class="fa-solid fa-circle-dot status-pulse"></i> Local Node</span>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div class="grid-container">
+            <!-- Left Panel: Configuration and Uploads -->
+            <section class="panel glass-card" id="config-panel" aria-labelledby="config-heading">
+                <h2 id="config-heading" class="panel-title"><i class="fa-solid fa-sliders text-gradient"></i> Konfigurasi & Upload</h2>
+                
+                <!-- API Key Section -->
+                <div class="form-group">
+                    <label for="api-key" class="form-label">
+                        <span>Gemini API Key</span>
+                        <span class="label-hint">Disimpan secara lokal di browser Anda</span>
+                    </label>
+                    <div class="input-with-icon">
+                        <i class="fa-solid fa-key input-left-icon"></i>
+                        <input type="password" id="api-key" placeholder="Masukkan Gemini API Key (Kosongkan untuk fallback offline)" class="form-input">
+                        <button type="button" id="toggle-api-key" class="input-right-btn" aria-label="Tampilkan API Key">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Model Selection -->
+                <div class="form-group">
+                    <label for="gemini-model" class="form-label">Gemini Model Plan</label>
+                    <div class="select-wrapper">
+                        <select id="gemini-model" class="form-input">
+                            <option value="gemini-1.5-flash" selected>Gemini 1.5 Flash (Medium - Rekomendasi Cepat)</option>
+                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (High - Analisis Lebih Kompleks)</option>
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Terbaru)</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down select-arrow"></i>
+                    </div>
+                </div>
+
+                <!-- File Upload Areas -->
+                <div class="form-group">
+                    <label class="form-label">Monthly Usage Report (.xlsx) <span class="required">*</span></label>
+                    <div class="drop-zone" id="drop-zone-usage">
+                        <input type="file" id="file-usage" accept=".xlsx" class="file-input">
+                        <i class="fa-solid fa-file-excel drop-icon text-gradient"></i>
+                        <p class="drop-text">Seret & taruh file Excel di sini atau <span>klik untuk menelusuri</span></p>
+                        <p class="drop-subtext">Hanya file Excel (.xlsx) dengan tab Summary, Chat Session, dan Billing Session</p>
+                    </div>
+                    <div class="file-details" id="details-usage">
+                        <i class="fa-solid fa-circle-check text-success"></i>
+                        <span class="file-name">filename.xlsx</span>
+                        <button type="button" class="remove-file-btn" id="remove-usage" aria-label="Hapus file usage"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <span>Pricing Reference Table (.xlsx)</span>
+                        <span class="label-hint">Opsional (Menggunakan default jika kosong)</span>
+                    </label>
+                    <div class="drop-zone" id="drop-zone-pricing">
+                        <input type="file" id="file-pricing" accept=".xlsx" class="file-input">
+                        <i class="fa-solid fa-file-invoice-dollar drop-icon text-muted"></i>
+                        <p class="drop-text">Seret & taruh file di sini atau <span>klik untuk menelusuri</span></p>
+                        <p class="drop-subtext">Laporan limit token dan harga per divisi</p>
+                    </div>
+                    <div class="file-details" id="details-pricing">
+                        <i class="fa-solid fa-circle-check text-success"></i>
+                        <span class="file-name">filename.xlsx</span>
+                        <button type="button" class="remove-file-btn" id="remove-pricing" aria-label="Hapus file pricing"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+
+                <!-- Custom Prompt / Instruction Area -->
+                <div class="form-group">
+                    <label for="custom-prompt" class="form-label">
+                        <span>Kustomisasi Prompt Analisis (LLM)</span>
+                        <span class="label-hint" id="char-counter">0 / 500 karakter</span>
+                    </label>
+                    <textarea id="custom-prompt" class="form-input form-textarea" maxlength="500" placeholder="Contoh: Tolong sebutkan penyebab tingginya billing di SSD secara mendetail dan gunakan bahasa yang sangat formal..."></textarea>
+                    
+                    <!-- Quick Prompt Templates -->
+                    <div class="prompt-templates">
+                        <span class="template-tag" data-prompt="Gunakan gaya penulisan yang sangat formal, sopan, dan ringkas untuk level direksi.">Formal & Ringkas</span>
+                        <span class="template-tag" data-prompt="Fokuskan analisis insight pada efisiensi token input dibanding token output yang dihasilkan.">Analisis Efisiensi Token</span>
+                        <span class="template-tag" data-prompt="Jelaskan detail detail overbilling yang terjadi dan berikan rekomendasi optimasi durasi sesi chat.">Rekomendasi Optimasi Sesi</span>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button type="button" id="btn-generate" class="btn btn-primary btn-block" disabled>
+                    <span class="btn-text"><i class="fa-solid fa-file-word"></i> Generate DOCX Report</span>
+                    <div class="btn-spinner hidden"><i class="fa-solid fa-circle-notch fa-spin"></i> Memproses...</div>
+                </button>
+            </section>
+
+            <!-- Right Panel: Live Stats Preview and Download Output -->
+            <section class="panel glass-card hidden-preview" id="preview-panel" aria-labelledby="preview-heading">
+                <h2 id="preview-heading" class="panel-title"><i class="fa-solid fa-chart-line text-gradient"></i> Data Preview & Output</h2>
+                
+                <div class="preview-content">
+                    <!-- Extracted Metadata Header -->
+                    <div class="meta-preview-box">
+                        <div class="meta-row">
+                            <span class="meta-label">Divisi/Departemen:</span>
+                            <span class="meta-val" id="meta-dept">-</span>
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-label">Periode Laporan:</span>
+                            <span class="meta-val" id="meta-period">-</span>
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-label">Reseller/Client:</span>
+                            <span class="meta-val" id="meta-client">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Usage Stats Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon bg-blue-trans"><i class="fa-solid fa-comments"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Chat Sessions</span>
+                                <span class="stat-value" id="stat-chat">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-indigo-trans"><i class="fa-solid fa-receipt"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Billing Sessions</span>
+                                <span class="stat-value" id="stat-billing">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-green-trans"><i class="fa-solid fa-arrow-right-to-bracket"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Total Input Tokens</span>
+                                <span class="stat-value" id="stat-input">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-yellow-trans"><i class="fa-solid fa-arrow-right-from-bracket"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Total Output Tokens</span>
+                                <span class="stat-value" id="stat-output">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Extra details (Overbilling rates) -->
+                    <div class="overbilling-alert-card">
+                        <div class="alert-header">
+                            <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+                            <h3 class="alert-title">Indikator Over-billing</h3>
+                        </div>
+                        <div class="alert-body">
+                            <div class="alert-stat">
+                                <span class="alert-stat-value" id="stat-over-pct">0%</span>
+                                <span class="alert-stat-label">Sesi Mengalami Over-billing</span>
+                            </div>
+                            <div class="alert-details">
+                                <p>Total: <strong id="stat-over-count">0</strong> dari <strong class="chat-sess-total">0</strong> Chat Sessions.</p>
+                                <p>Rata-rata: <strong id="stat-avg-bill">0.0</strong> billing per chat.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress timeline (shown during DOCX generation) -->
+                    <div class="timeline-box hidden" id="generation-timeline">
+                        <h3 class="timeline-title">Log Progres Pembuatan Dokumen</h3>
+                        <ul class="timeline-list">
+                            <li class="timeline-item" id="step-1">
+                                <span class="step-bullet"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
+                                <span class="step-text">Mengunggah & menganalisis file Excel...</span>
+                            </li>
+                            <li class="timeline-item" id="step-2">
+                                <span class="step-bullet"><i class="fa-solid fa-circle-dot"></i></span>
+                                <span class="step-text">Menghubungi Gemini API untuk analisis kustom...</span>
+                            </li>
+                            <li class="timeline-item" id="step-3">
+                                <span class="step-bullet"><i class="fa-solid fa-circle-dot"></i></span>
+                                <span class="step-text">Menyusun layout tabel & kompilasi file DOCX...</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Download Section -->
+                    <div class="download-card hidden" id="download-area">
+                        <div class="download-icon-box"><i class="fa-solid fa-circle-down animated-bounce"></i></div>
+                        <div class="download-info">
+                            <h4>Laporan Anda Telah Siap!</h4>
+                            <p>File Word (.docx) berhasil dihasilkan dengan gaya persetujuan Adira Finance yang rapi dan analisis Gemini AI yang kustom.</p>
+                            <a href="#" id="btn-download" class="btn btn-success"><i class="fa-solid fa-download"></i> Unduh File Laporan (.docx)</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2026 PT Adira Dinamika Multi Finance Tbk & PT Bumi Amartha Teknologi Mandiri. Hak Cipta Dilindungi.</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
