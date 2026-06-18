@@ -2,7 +2,7 @@ import os
 import tempfile
 import zipfile
 from flask import Flask, render_template, request, jsonify, send_file
-from utils import parse_usage_excel, generate_gemini_insights, generate_openrouter_insights, compile_docx, get_offline_fallback
+from utils import parse_usage_excel, compile_docx, get_offline_fallback
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # Increase to 32MB to support multiple uploads
@@ -62,11 +62,6 @@ def generate_report():
         return jsonify({'error': 'Tidak ada file usage Excel yang dipilih.'}), 400
         
     pricing_file = request.files.get('pricing_file')
-    use_ai = request.form.get('use_ai') == 'true'
-    ai_provider = request.form.get('ai_provider', 'gemini').strip()
-    api_key = request.form.get('api_key', '').strip()
-    model_name = request.form.get('model_name', '').strip()
-    custom_prompt = request.form.get('custom_prompt', '').strip()
     enable_header = request.form.get('enable_header') == 'true'
     custom_filename = request.form.get('custom_filename', '').strip()
     
@@ -87,16 +82,8 @@ def generate_report():
             # 1. Parse Excel data
             parsed_data = parse_usage_excel(usage_path, pricing_path)
             
-            # 2. Get AI or offline fallback insights
-            if use_ai and api_key:
-                if ai_provider == 'gemini':
-                    insights = generate_gemini_insights(api_key, model_name or 'gemini-1.5-flash', parsed_data, custom_prompt)
-                elif ai_provider == 'openrouter':
-                    insights = generate_openrouter_insights(api_key, model_name or 'google/gemini-2.5-flash', parsed_data, custom_prompt)
-                else:
-                    insights = get_offline_fallback(parsed_data)
-            else:
-                insights = get_offline_fallback(parsed_data)
+            # 2. Get offline fallback insights
+            insights = get_offline_fallback(parsed_data)
             
             # 3. Create temp output DOCX path
             out_docx_path = os.path.join(tmpdir, "report.docx")
@@ -124,16 +111,12 @@ def generate_report():
                     month_year = f"{m_id} {period_parts[6]}"
                 download_name = f"{dept_name} Usage Chatbot Report - {month_year}.docx"
             
-            import json
-            response_file = send_file(
+            return send_file(
                 out_docx_path,
                 as_attachment=True,
                 download_name=download_name,
                 mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             )
-            response_file.headers['X-AI-Content'] = json.dumps(insights)
-            response_file.headers['Access-Control-Expose-Headers'] = 'X-AI-Content'
-            return response_file
             
         except Exception as e:
             import traceback
@@ -151,11 +134,6 @@ def generate_batch():
         return jsonify({'error': 'Tidak ada file usage Excel yang dipilih.'}), 400
         
     pricing_file = request.files.get('pricing_file')
-    use_ai = request.form.get('use_ai') == 'true'
-    ai_provider = request.form.get('ai_provider', 'gemini').strip()
-    api_key = request.form.get('api_key', '').strip()
-    model_name = request.form.get('model_name', '').strip()
-    custom_prompt = request.form.get('custom_prompt', '').strip()
     enable_header = request.form.get('enable_header') == 'true'
     
     custom_filenames = request.form.getlist('custom_filenames')
@@ -171,7 +149,6 @@ def generate_batch():
             
         zip_path = os.path.join(tmpdir, "sygma_chatbot_reports.zip")
         
-        batch_insights = []
         try:
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for idx, u_file in enumerate(usage_files):
@@ -185,18 +162,8 @@ def generate_batch():
                     # Parse data
                     parsed_data = parse_usage_excel(u_path, pricing_path)
                     
-                    # Get AI or offline insights
-                    if use_ai and api_key:
-                        if ai_provider == 'gemini':
-                            insights = generate_gemini_insights(api_key, model_name or 'gemini-1.5-flash', parsed_data, custom_prompt)
-                        elif ai_provider == 'openrouter':
-                            insights = generate_openrouter_insights(api_key, model_name or 'google/gemini-2.5-flash', parsed_data, custom_prompt)
-                        else:
-                            insights = get_offline_fallback(parsed_data)
-                    else:
-                        insights = get_offline_fallback(parsed_data)
-                    
-                    batch_insights.append(insights)
+                    # Get offline insights
+                    insights = get_offline_fallback(parsed_data)
                         
                     # Compile DOCX
                     out_docx_path = os.path.join(tmpdir, f"report_{idx}.docx")
@@ -226,16 +193,12 @@ def generate_batch():
                         
                     zipf.write(out_docx_path, arcname=filename)
                     
-            import json
-            response_file = send_file(
+            return send_file(
                 zip_path,
                 as_attachment=True,
                 download_name="sygma_chatbot_reports.zip",
                 mimetype='application/zip'
             )
-            response_file.headers['X-AI-Content'] = json.dumps(batch_insights)
-            response_file.headers['Access-Control-Expose-Headers'] = 'X-AI-Content'
-            return response_file
         except Exception as e:
             import traceback
             traceback.print_exc()

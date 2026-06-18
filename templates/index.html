@@ -30,78 +30,8 @@
             <section class="panel glass-card" id="config-panel" aria-labelledby="config-heading">
                 <h2 id="config-heading" class="panel-title"><i class="fa-solid fa-sliders text-gradient"></i> Konfigurasi & Upload</h2>
                 
-                <!-- AI Switch / Toggle -->
-                <div class="form-group toggle-group">
-                    <label class="toggle-switch-label" for="use-ai-toggle">
-                        <span class="toggle-text-main">Aktifkan Analisis AI (LLM)</span>
-                        <span class="toggle-desc">Hubungkan API key untuk generate cover letter & insight kustom</span>
-                    </label>
-                    <label class="switch">
-                        <input type="checkbox" id="use-ai-toggle" checked>
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-
-                <!-- AI Configurations Container (Toggled) -->
-                <div id="ai-config-section" class="ai-config-container">
-                    <!-- Provider Selection -->
-                    <div class="form-group">
-                        <label class="form-label">Provider AI</label>
-                        <div class="provider-selector">
-                            <label class="provider-option active">
-                                <input type="radio" name="ai-provider" value="gemini" checked>
-                                <i class="fa-solid fa-gemini"></i> Gemini API
-                            </label>
-                            <label class="provider-option">
-                                <input type="radio" name="ai-provider" value="openrouter">
-                                <i class="fa-solid fa-network-wired"></i> OpenRouter
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- API Key Section -->
-                    <div class="form-group">
-                        <label for="api-key" class="form-label">
-                            <span id="api-key-label">Gemini API Key</span>
-                            <span class="label-hint">Disimpan secara lokal di browser Anda</span>
-                        </label>
-                        <div class="input-with-icon">
-                            <i class="fa-solid fa-key input-left-icon"></i>
-                            <input type="password" id="api-key" placeholder="Masukkan Gemini API Key" class="form-input">
-                            <button type="button" id="toggle-api-key" class="input-right-btn" aria-label="Tampilkan API Key">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Gemini Model Selection (Toggled) -->
-                    <div class="form-group" id="gemini-model-group">
-                        <label for="gemini-model" class="form-label">Gemini Model Plan</label>
-                        <div class="select-wrapper">
-                            <select id="gemini-model" class="form-input">
-                                <option value="gemini-1.5-flash" selected>Gemini 1.5 Flash (Medium - Rekomendasi Cepat)</option>
-                                <option value="gemini-1.5-pro">Gemini 1.5 Pro (High - Analisis Lebih Kompleks)</option>
-                                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Terbaru)</option>
-                            </select>
-                            <i class="fa-solid fa-chevron-down select-arrow"></i>
-                        </div>
-                    </div>
-
-                    <!-- OpenRouter Model Free Text (Toggled) -->
-                    <div class="form-group hidden" id="openrouter-model-group">
-                        <label for="openrouter-model" class="form-label">
-                            <span>OpenRouter Model Name</span>
-                            <span class="label-hint">Free text (Contoh: google/gemini-2.5-flash)</span>
-                        </label>
-                        <div class="input-with-icon">
-                            <i class="fa-solid fa-microchip input-left-icon"></i>
-                            <input type="text" id="openrouter-model" value="google/gemini-2.5-flash" placeholder="e.g. google/gemini-2.5-flash" class="form-input" style="padding-left: 2.5rem;">
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Document Layout & Styling Toggles -->
-                <div class="form-group toggle-group" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                <div class="form-group toggle-group" style="margin-bottom: 1rem;">
                     <label class="toggle-switch-label" for="enable-header-checkbox">
                         <span class="toggle-text-main">Sertakan Kop Surat</span>
                         <span class="toggle-desc">Menyertakan Logo Adira Finance & garis pembatas biru</span>
@@ -143,22 +73,6 @@
                     </div>
                 </div>
 
-                <!-- Custom Prompt / Instruction Area -->
-                <div class="form-group">
-                    <label for="custom-prompt" class="form-label">
-                        <span>Kustomisasi Prompt Analisis (LLM)</span>
-                        <span class="label-hint" id="char-counter">0 / 500 karakter</span>
-                    </label>
-                    <textarea id="custom-prompt" class="form-input form-textarea" maxlength="500" placeholder="Contoh: Tolong sebutkan penyebab tingginya billing di SSD secara mendetail dan gunakan bahasa yang sangat formal..."></textarea>
-                    
-                    <!-- Quick Prompt Templates -->
-                    <div class="prompt-templates">
-                        <span class="template-tag" data-prompt="Gunakan gaya penulisan yang sangat formal, sopan, dan ringkas untuk level direksi.">Formal & Ringkas</span>
-                        <span class="template-tag" data-prompt="Fokuskan analisis insight pada efisiensi token input dibanding token output yang dihasilkan.">Analisis Efisiensi Token</span>
-                        <span class="template-tag" data-prompt="Jelaskan detail detail overbilling yang terjadi dan berikan rekomendasi optimasi durasi sesi chat.">Rekomendasi Optimasi Sesi</span>
-                    </div>
-                </div>
-
                 <!-- Action Buttons -->
                 <div class="action-buttons-row" style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
                     <button type="button" id="btn-generate" class="btn btn-primary" style="flex: 1;" disabled>
@@ -185,6 +99,72 @@
                 </div>
                 
                 <div class="preview-content">
+                    <!-- Extracted Metadata Header -->
+                    <div class="meta-preview-box">
+                        <div class="meta-row">
+                            <span class="meta-label">Divisi/Departemen:</span>
+                            <span class="meta-val" id="meta-dept">-</span>
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-label">Periode Laporan:</span>
+                            <span class="meta-val" id="meta-period">-</span>
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-label">Reseller/Client:</span>
+                            <span class="meta-val" id="meta-client">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Usage Stats Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon bg-blue-trans"><i class="fa-solid fa-comments"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Chat Sessions</span>
+                                <span class="stat-value" id="stat-chat">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-indigo-trans"><i class="fa-solid fa-receipt"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Billing Sessions</span>
+                                <span class="stat-value" id="stat-billing">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-green-trans"><i class="fa-solid fa-arrow-right-to-bracket"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Total Input Tokens</span>
+                                <span class="stat-value" id="stat-input">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-yellow-trans"><i class="fa-solid fa-arrow-right-from-bracket"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Total Output Tokens</span>
+                                <span class="stat-value" id="stat-output">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Extra details (Overbilling rates) -->
+                    <div class="overbilling-alert-card">
+                        <div class="alert-header">
+                            <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+                            <h3 class="alert-title">Indikator Over-billing</h3>
+                        </div>
+                        <div class="alert-body">
+                            <div class="alert-stat">
+                                <span class="alert-stat-value" id="stat-over-pct">0%</span>
+                                <span class="alert-stat-label">Sesi Mengalami Over-billing</span>
+                            </div>
+                            <div class="alert-details">
+                                <p>Total: <strong id="stat-over-count">0</strong> dari <strong class="chat-sess-total">0</strong> Chat Sessions.</p>
+                                <p>Rata-rata: <strong id="stat-avg-bill">0.0</strong> billing per chat.</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Filename Customization for Current File -->
                     <div class="form-group filename-edit-group" style="margin-bottom: 0.75rem;">
                         <label for="output-filename" class="form-label">
@@ -197,28 +177,14 @@
                         </div>
                     </div>
 
-                    <!-- Preview Toolbar (Zoom, Scroll, Downloads) -->
-                    <div class="preview-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; background: #f1f5f9; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.5rem;">
-                        <div class="zoom-controls" style="display: flex; align-items: center; gap: 0.35rem;">
-                            <button type="button" id="btn-zoom-out" class="btn btn-secondary btn-xs" style="padding: 0.25rem 0.5rem;" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
-                            <span id="zoom-level-text" style="font-size: 0.75rem; font-weight: 600; min-width: 2.5rem; text-align: center; color: var(--text-primary);">100%</span>
-                            <button type="button" id="btn-zoom-in" class="btn btn-secondary btn-xs" style="padding: 0.25rem 0.5rem;" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
-                            <button type="button" id="btn-zoom-reset" class="btn btn-secondary btn-xs" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;">Reset</button>
-                        </div>
-                        <div class="preview-actions" style="display: flex; gap: 0.35rem;">
-                            <button type="button" id="btn-download-single" class="btn btn-success btn-xs" style="padding: 0.35rem 0.75rem;" disabled><i class="fa-solid fa-download"></i> Unduh DOCX</button>
-                            <button type="button" id="btn-download-all-zip" class="btn btn-primary btn-xs hidden" style="padding: 0.35rem 0.75rem;"><i class="fa-solid fa-file-zipper"></i> Unduh Semua (ZIP)</button>
-                        </div>
-                    </div>
-
-                    <!-- Scrollable Document Preview Wrapper -->
-                    <div class="document-preview-wrapper" id="document-preview-wrapper" style="background: #e2e8f0; border-radius: 12px; border: 1px solid var(--border-color); padding: 1.5rem 1rem; overflow: auto; max-height: 550px; display: flex; justify-content: center; position: relative;">
-                        <!-- The simulated A4 paper page -->
-                        <div class="document-page" id="document-page">
-                            <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
-                                Menunggu unggahan file Excel...
-                            </div>
-                        </div>
+                    <!-- Download Action Area -->
+                    <div class="download-action-area" style="display: flex; gap: 0.5rem; margin-top: 1rem; margin-bottom: 1rem;">
+                        <button type="button" id="btn-download-single" class="btn btn-success" style="flex: 1;" disabled>
+                            <i class="fa-solid fa-download"></i> Unduh DOCX
+                        </button>
+                        <button type="button" id="btn-download-all-zip" class="btn btn-primary hidden" style="flex: 1;">
+                            <i class="fa-solid fa-file-zipper"></i> Unduh Semua (ZIP)
+                        </button>
                     </div>
 
                     <!-- Progress timeline (shown during DOCX generation) -->
@@ -228,10 +194,6 @@
                             <li class="timeline-item" id="step-1">
                                 <span class="step-bullet"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
                                 <span class="step-text">Mengunggah & menganalisis file Excel...</span>
-                            </li>
-                            <li class="timeline-item" id="step-2">
-                                <span class="step-bullet"><i class="fa-solid fa-circle-dot"></i></span>
-                                <span class="step-text">Menghubungi Gemini/OpenRouter API...</span>
                             </li>
                             <li class="timeline-item" id="step-3">
                                 <span class="step-bullet"><i class="fa-solid fa-circle-dot"></i></span>
