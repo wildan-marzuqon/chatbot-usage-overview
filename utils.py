@@ -520,10 +520,14 @@ def compile_docx(output_path, data, gemini_content, logo_path, enable_header=Tru
     set_para_spacing(p_space, before_pt=0, after_pt=6)
 
     # 4. Salutation & Introduction (Gemini generated)
-    p_intro = doc.add_paragraph()
-    set_para_spacing(p_intro, before_pt=0, after_pt=6)
-    r_salut = p_intro.add_run("Dengan hormat,\n\n")
+    p_salut = doc.add_paragraph()
+    set_para_spacing(p_salut, before_pt=0, after_pt=6)
+    r_salut = p_salut.add_run("Dengan hormat,")
     format_run(r_salut, font_name="Arial", size_pt=10)
+    
+    p_intro = doc.add_paragraph()
+    p_intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    set_para_spacing(p_intro, before_pt=0, after_pt=6)
     
     intro_parts = gemini_content['introduction'].split('**')
     for idx, part in enumerate(intro_parts):
@@ -606,6 +610,7 @@ def compile_docx(output_path, data, gemini_content, logo_path, enable_header=Tru
     format_run(r, font_name="Arial", size_pt=11, color_rgb=RGBColor(31, 78, 121), bold=True)
 
     p_llm_intro = doc.add_paragraph()
+    p_llm_intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     set_para_spacing(p_llm_intro, before_pt=0, after_pt=4)
     r = p_llm_intro.add_run(
         f"Layanan chatbot pada divisi {data['dept_name']} menggunakan agen AI dengan rincian limit token sebagai berikut:"
@@ -668,6 +673,7 @@ def compile_docx(output_path, data, gemini_content, logo_path, enable_header=Tru
     format_run(r, font_name="Arial", size_pt=11, color_rgb=RGBColor(31, 78, 121), bold=True)
 
     p_over_intro = doc.add_paragraph()
+    p_over_intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     set_para_spacing(p_over_intro, before_pt=0, after_pt=4)
     p_over_intro.add_run("Secara default, satu Chat Session dihitung sebagai satu Billing Session. Namun, sesi billing dapat bertambah (over-billing) apabila percakapan melebihi batas waktu sesi atau akumulasi token output menyentuh kapasitas model plan. Dari total ")
     r_chat_sess = p_over_intro.add_run(f"{format_id(data['chat_sessions'])}")
@@ -764,6 +770,7 @@ def compile_docx(output_path, data, gemini_content, logo_path, enable_header=Tru
             cleaned_ins = cleaned_ins[3:]
             
         p_ins = doc.add_paragraph(style='List Bullet')
+        p_ins.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         set_para_spacing(p_ins, before_pt=0, after_pt=3)
         
         # Split by bold markers
@@ -783,6 +790,7 @@ def compile_docx(output_path, data, gemini_content, logo_path, enable_header=Tru
     format_run(r, font_name="Arial", size_pt=11, color_rgb=RGBColor(31, 78, 121), bold=True)
 
     p_att = doc.add_paragraph()
+    p_att.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     set_para_spacing(p_att, before_pt=0, after_pt=6)
     r_att = p_att.add_run(
         f"Rincian lengkap dari seluruh interaksi chatbot terlampir secara terpisah pada spreadsheet {data['xlsx_filename']}:\n"
@@ -792,6 +800,7 @@ def compile_docx(output_path, data, gemini_content, logo_path, enable_header=Tru
     format_run(r_att, font_name="Arial", size_pt=8.5, color_rgb=RGBColor(89, 89, 89), italic=True)
 
     p_close = doc.add_paragraph()
+    p_close.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     set_para_spacing(p_close, before_pt=4, after_pt=12)
     r_close = p_close.add_run("Demikian laporan ringkasan penggunaan ini kami sampaikan. Atas perhatian dan kerjasamanya, kami ucapkan terima kasih.")
     format_run(r_close, font_name="Arial", size_pt=10)
