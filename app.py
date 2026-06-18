@@ -1,10 +1,11 @@
 import os
 import tempfile
+import zipfile
 from flask import Flask, render_template, request, jsonify, send_file
-from utils import parse_usage_excel, generate_gemini_insights, compile_docx
+from utils import parse_usage_excel, generate_gemini_insights, generate_openrouter_insights, compile_docx, get_offline_fallback
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
+app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # Increase to 32MB to support multiple uploads
 
 # Path to the default pricing file in the workspace
 DEFAULT_PRICING_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "LLM_Pricing_and_Token_Limits.xlsx"))
@@ -61,9 +62,13 @@ def generate_report():
         return jsonify({'error': 'Tidak ada file usage Excel yang dipilih.'}), 400
         
     pricing_file = request.files.get('pricing_file')
-    api_key = request.form.get('gemini_api_key', '').strip()
-    model_name = request.form.get('gemini_model', 'gemini-1.5-flash').strip()
+    use_ai = request.form.get('use_ai') == 'true'
+    ai_provider = request.form.get('ai_provider', 'gemini').strip()
+    api_key = request.form.get('api_key', '').strip()
+    model_name = request.form.get('model_name', '').strip()
     custom_prompt = request.form.get('custom_prompt', '').strip()
+    enable_header = request.form.get('enable_header') == 'true'
+    custom_filename = request.form.get('custom_filename', '').strip()
     
     # Create temporary directory for processing
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -82,27 +87,35 @@ def generate_report():
             # 1. Parse Excel data
             parsed_data = parse_usage_excel(usage_path, pricing_path)
             
-            # 2. Call Gemini API for insights & cover letter
-            gemini_res = generate_gemini_insights(api_key, model_name, parsed_data, custom_prompt)
+            # 2. Get AI or offline fallback insights
+            if use_ai and api_key:
+                if ai_provider == 'gemini':
+                    insights = generate_gemini_insights(api_key, model_name or 'gemini-1.5-flash', parsed_data, custom_prompt)
+                elif ai_provider == 'openrouter':
+                    insights = generate_openrouter_insights(api_key, model_name or 'google/gemini-2.5-flash', parsed_data, custom_prompt)
+                else:
+                    insights = get_offline_fallback(parsed_data)
+            else:
+                insights = get_offline_fallback(parsed_data)
             
             # 3. Create temp output DOCX path
             out_docx_path = os.path.join(tmpdir, "report.docx")
             
             # 4. Compile Word Document
-            compile_docx(out_docx_path, parsed_data, gemini_res, DEFAULT_LOGO_PATH)
+            compile_docx(out_docx_path, parsed_data, insights, DEFAULT_LOGO_PATH, enable_header=enable_header)
             
             # 5. Send file back to user
-            # format the download filename e.g. usage_chatbot_credit_mei_2026.docx
-            dept_slug = parsed_data['dept_name'].lower().replace(" ", "_")
-            # Parse period to get month and year
-            period_parts = parsed_data['period'].split()
-            # typical period: "01 May 2026 – 31 May 2026"
-            month_year = "report"
-            if len(period_parts) >= 6:
-                # index 4 is month, index 5 is year
-                month_year = f"{period_parts[4].lower()}_{period_parts[5]}"
-            
-            download_name = f"usage_chatbot_{dept_slug}_{month_year}.docx"
+            if custom_filename:
+                download_name = custom_filename
+                if not download_name.endswith('.docx'):
+                    download_name += '.docx'
+            else:
+                dept_slug = parsed_data['dept_name'].lower().replace(" ", "_")
+                period_parts = parsed_data['period'].split()
+                month_year = "report"
+                if len(period_parts) >= 6:
+                    month_year = f"{period_parts[4].lower()}_{period_parts[5]}"
+                download_name = f"usage_chatbot_{dept_slug}_{month_year}.docx"
             
             return send_file(
                 out_docx_path,
@@ -116,6 +129,93 @@ def generate_report():
             traceback.print_exc()
             error_details = traceback.format_exc()
             return jsonify({'error': f'Gagal memproses laporan: {str(e)}', 'details': error_details}), 500
+
+@app.route('/api/generate-batch', methods=['POST'])
+def generate_batch():
+    if 'usage_files' not in request.files:
+        return jsonify({'error': 'Tidak ada file usage Excel yang diunggah.'}), 400
+        
+    usage_files = request.files.getlist('usage_files')
+    if not usage_files or len(usage_files) == 0 or (len(usage_files) == 1 and usage_files[0].filename == ''):
+        return jsonify({'error': 'Tidak ada file usage Excel yang dipilih.'}), 400
+        
+    pricing_file = request.files.get('pricing_file')
+    use_ai = request.form.get('use_ai') == 'true'
+    ai_provider = request.form.get('ai_provider', 'gemini').strip()
+    api_key = request.form.get('api_key', '').strip()
+    model_name = request.form.get('model_name', '').strip()
+    custom_prompt = request.form.get('custom_prompt', '').strip()
+    enable_header = request.form.get('enable_header') == 'true'
+    
+    custom_filenames = request.form.getlist('custom_filenames')
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        pricing_path = DEFAULT_PRICING_PATH
+        if pricing_file and pricing_file.filename != '':
+            pricing_path = os.path.join(tmpdir, "pricing.xlsx")
+            pricing_file.save(pricing_path)
+            
+        if not os.path.exists(pricing_path):
+            pricing_path = None
+            
+        zip_path = os.path.join(tmpdir, "sygma_chatbot_reports.zip")
+        
+        try:
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for idx, u_file in enumerate(usage_files):
+                    if u_file.filename == '':
+                        continue
+                        
+                    # Save usage file temporarily
+                    u_path = os.path.join(tmpdir, f"usage_{idx}.xlsx")
+                    u_file.save(u_path)
+                    
+                    # Parse data
+                    parsed_data = parse_usage_excel(u_path, pricing_path)
+                    
+                    # Get AI or offline insights
+                    if use_ai and api_key:
+                        if ai_provider == 'gemini':
+                            insights = generate_gemini_insights(api_key, model_name or 'gemini-1.5-flash', parsed_data, custom_prompt)
+                        elif ai_provider == 'openrouter':
+                            insights = generate_openrouter_insights(api_key, model_name or 'google/gemini-2.5-flash', parsed_data, custom_prompt)
+                        else:
+                            insights = get_offline_fallback(parsed_data)
+                    else:
+                        insights = get_offline_fallback(parsed_data)
+                        
+                    # Compile DOCX
+                    out_docx_path = os.path.join(tmpdir, f"report_{idx}.docx")
+                    compile_docx(out_docx_path, parsed_data, insights, DEFAULT_LOGO_PATH, enable_header=enable_header)
+                    
+                    # Determine filename
+                    filename = None
+                    if idx < len(custom_filenames) and custom_filenames[idx].strip():
+                        filename = custom_filenames[idx].strip()
+                        if not filename.endswith('.docx'):
+                            filename += '.docx'
+                    else:
+                        # automatic naming fallback
+                        dept_slug = parsed_data['dept_name'].replace("/", "_").replace("\\", "_")
+                        period_parts = parsed_data['period'].split()
+                        month_year = "report"
+                        if len(period_parts) >= 6:
+                            month_year = f"{period_parts[4]}_{period_parts[5]}"
+                        filename = f"{dept_slug} Usage Chatbot Report - {month_year}.docx"
+                        
+                    zipf.write(out_docx_path, arcname=filename)
+                    
+            return send_file(
+                zip_path,
+                as_attachment=True,
+                download_name="sygma_chatbot_reports.zip",
+                mimetype='application/zip'
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            error_details = traceback.format_exc()
+            return jsonify({'error': f'Gagal memproses batch laporan: {str(e)}', 'details': error_details}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

@@ -369,9 +369,7 @@ def clean_json_response(text):
         text = text[:-3]
     return text.strip()
 
-def generate_gemini_insights(api_key, model_name, data, custom_prompt):
-    token_ratio = data['input_tokens'] / data['output_tokens'] if data['output_tokens'] else 0
-    
+def get_analysis_prompt(data, custom_prompt):
     sorted_over = sorted(data['over_billing_list'], key=lambda x: x['bills_count'], reverse=True)
     longest_sessions_parts = []
     for i in range(min(3, len(sorted_over))):
@@ -391,7 +389,6 @@ Gunakan data penggunaan berikut untuk menyusun analisis:
   * Batas Token Output: {data['count_output']} sesi
   * Batas Waktu: {data['count_time']} sesi
   * Kombinasi Keduanya: {data['count_both']} sesi
-- Rasio Input-to-Output Token: {token_ratio:.1f}:1
 - Sesi dengan over-billing terbanyak: {longest_sessions_str}
 
 Instruksi Tambahan dari Pengguna:
@@ -399,30 +396,39 @@ Instruksi Tambahan dari Pengguna:
 
 Persyaratan Output:
 1. Tulis teks pengantar (introduction) yang formal, profesional, dan mengalir dalam Bahasa Indonesia. Paragraf ini merujuk ke implementasi layanan AI Chatbot SYGMA untuk divisi tersebut pada periode tersebut. Jangan gunakan placeholder.
-2. Tulis 3 poin insight (analisis mendalam) dalam Bahasa Indonesia. Poin pertama harus menganalisis rata-rata billing per chat session. Poin kedua harus menganalisis rasio token input terhadap output (misal jika input tinggi, jelaskan mengapa inputnya besar seperti pengiriman konteks dokumen/histori, sedangkan output ringkas). Poin ketiga menganalisis sesi over-billing terpanjang atau faktor utama penyebab over-billing.
+2. Tulis 2 poin insight (analisis mendalam) dalam Bahasa Indonesia. Poin pertama harus menganalisis rata-rata billing per chat session. Poin kedua menganalisis sesi over-billing terpanjang atau faktor utama penyebab over-billing.
 3. Output harus berupa JSON valid dengan format:
 {{
   "introduction": "isi paragraf pengantar...",
   "insights": [
     "poin insight 1...",
-    "poin insight 2...",
-    "poin insight 3..."
+    "poin insight 2..."
   ]
 }}
 Jangan sertakan markdown formatting seperti ```json di luar teks JSON. Langsung kembalikan string JSON.
 """
+    return prompt
 
+def get_offline_fallback(data):
+    sorted_over = sorted(data['over_billing_list'], key=lambda x: x['bills_count'], reverse=True)
+    longest_sessions_parts = []
+    for i in range(min(3, len(sorted_over))):
+        longest_sessions_parts.append(f"UUID {sorted_over[i]['uuid'][:8]}... ({sorted_over[i]['bills_count']} Billing Sessions)")
+    longest_sessions_str = ", ".join(longest_sessions_parts) if longest_sessions_parts else "-"
+
+    return {
+        "introduction": f"Merujuk pada implementasi layanan AI Chatbot pada aplikasi SYGMA, bersama ini kami sampaikan laporan ringkasan penggunaan layanan untuk divisi {data['dept_name']} pada periode {data['period']}. Laporan ini merupakan ikhtisar volume penggunaan, aktivitas interaksi chatbot, serta analisis detail billing session.",
+        "insights": [
+            f"Rata-rata Billing Session per Chat Session di divisi {data['dept_name']} adalah {data['avg_billing_per_chat']:.2f} sesi. Hal ini menandakan pola penggunaan interaktif dengan durasi percakapan melampaui batas awal sesi dasar.",
+            f"Sesi dengan over-billing terbanyak terjadi pada: {longest_sessions_str}. Hal ini menandakan adanya sesi konsultasi intensif berdurasi sangat panjang atau melampaui batas limit token output berulang kali."
+        ]
+    }
+
+def generate_gemini_insights(api_key, model_name, data, custom_prompt):
     if not api_key:
-        # Return fallback template default text
-        return {
-            "introduction": f"Merujuk pada implementasi layanan AI Chatbot pada aplikasi SYGMA, bersama ini kami sampaikan laporan ringkasan penggunaan layanan untuk divisi {data['dept_name']} pada periode {data['period']}. Laporan ini merupakan ikhtisar volume penggunaan, aktivitas interaksi chatbot, serta analisis detail billing session.",
-            "insights": [
-                f"Rata-rata Billing Session per Chat Session di divisi {data['dept_name']} adalah {data['avg_billing_per_chat']:.2f} sesi. Hal ini menandakan pola penggunaan interaktif dengan durasi percakapan melampaui batas awal jendela sesi dasar.",
-                f"Rasio token input terhadap token output yang tinggi ({token_ratio:.1f}:1) menunjukkan bahwa tipe aktivitas di divisi {data['dept_name']} melibatkan pengiriman file data besar atau histori dokumen panjang sebagai konteks analisis model AI, sedangkan jawaban AI cenderung efisien.",
-                f"Sesi dengan over-billing terbanyak terjadi pada: {longest_sessions_str}. Hal ini menandakan adanya sesi konsultasi intensif berdurasi sangat panjang atau melampaui batas limit token output berulang kali."
-            ]
-        }
+        return get_offline_fallback(data)
 
+    prompt = get_analysis_prompt(data, custom_prompt)
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
@@ -446,23 +452,54 @@ Jangan sertakan markdown formatting seperti ```json di luar teks JSON. Langsung 
         cleaned_text = clean_json_response(text_response)
         parsed_res = json.loads(cleaned_text)
         
-        # Ensure format keys exist
         if "introduction" in parsed_res and "insights" in parsed_res:
             return parsed_res
     except Exception as e:
         print(f"Error calling Gemini API: {e}")
     
-    # Fallback default content in case of API failure
-    return {
-        "introduction": f"Merujuk pada implementasi layanan AI Chatbot pada aplikasi SYGMA, bersama ini kami sampaikan laporan ringkasan penggunaan layanan untuk divisi {data['dept_name']} pada periode {data['period']}. Laporan ini merupakan ikhtisar volume penggunaan, aktivitas interaksi chatbot, serta analisis detail billing session.",
-        "insights": [
-            f"Rata-rata Billing Session per Chat Session di divisi {data['dept_name']} adalah {data['avg_billing_per_chat']:.2f} sesi. Hal ini menandakan pola penggunaan interaktif dengan durasi percakapan melampaui batas awal jendela sesi dasar.",
-            f"Rasio token input terhadap token output yang tinggi ({token_ratio:.1f}:1) menunjukkan bahwa tipe aktivitas di divisi {data['dept_name']} melibatkan pengiriman file data besar atau histori dokumen panjang sebagai konteks analisis model AI, sedangkan jawaban AI cenderung efisien.",
-            f"Sesi dengan over-billing terbanyak terjadi pada: {longest_sessions_str}. Hal ini menandakan adanya sesi konsultasi intensif berdurasi sangat panjang atau melampaui batas limit token output berulang kali."
-        ]
-    }
+    return get_offline_fallback(data)
 
-def compile_docx(output_path, data, gemini_content, logo_path):
+def generate_openrouter_insights(api_key, model_name, data, custom_prompt):
+    if not api_key:
+        return get_offline_fallback(data)
+
+    prompt = get_analysis_prompt(data, custom_prompt)
+    try:
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "HTTP-Referer": "http://localhost:5000",
+            "X-Title": "SYGMA Report Generator",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": model_name or "google/gemini-flash-1.5",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.2
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        response_json = response.json()
+        
+        text_response = response_json['choices'][0]['message']['content']
+        cleaned_text = clean_json_response(text_response)
+        parsed_res = json.loads(cleaned_text)
+        
+        if "introduction" in parsed_res and "insights" in parsed_res:
+            return parsed_res
+    except Exception as e:
+        print(f"Error calling OpenRouter API: {e}")
+        if 'response_json' in locals():
+            print(f"OpenRouter response: {response_json}")
+    
+    return get_offline_fallback(data)
+
+def compile_docx(output_path, data, gemini_content, logo_path, enable_header=True):
     doc = Document()
     
     # Defaults
@@ -484,22 +521,22 @@ def compile_docx(output_path, data, gemini_content, logo_path):
     section.bottom_margin = Inches(0.8)
     section.left_margin = Inches(0.8)
     section.right_margin = Inches(0.8)
-
     # 1. Logo Header
-    p_logo = doc.add_paragraph()
-    set_para_spacing(p_logo, before_pt=0, after_pt=10)
-    if logo_path and os.path.exists(logo_path):
-        p_logo.add_run().add_picture(logo_path, width=Inches(2.77))
-    else:
-        # fallback text logo if image is missing
-        r = p_logo.add_run("ADIRA FINANCE")
-        format_run(r, font_name="Arial", size_pt=18, bold=True, color_rgb=RGBColor(241, 196, 15))
+    if enable_header:
+        p_logo = doc.add_paragraph()
+        set_para_spacing(p_logo, before_pt=0, after_pt=10)
+        if logo_path and os.path.exists(logo_path):
+            p_logo.add_run().add_picture(logo_path, width=Inches(2.77))
+        else:
+            # fallback text logo if image is missing
+            r = p_logo.add_run("ADIRA FINANCE")
+            format_run(r, font_name="Arial", size_pt=18, bold=True, color_rgb=RGBColor(241, 196, 15))
 
-    # Divider line
-    p_div = doc.add_paragraph()
-    set_para_spacing(p_div, before_pt=0, after_pt=10)
-    p_div_border = parse_xml(f'<w:pBdr {nsdecls("w")}><w:bottom w:val="single" w:sz="6" w:space="1" w:color="1F4E79"/></w:pBdr>')
-    p_div._p.get_or_add_pPr().append(p_div_border)
+        # Divider line
+        p_div = doc.add_paragraph()
+        set_para_spacing(p_div, before_pt=0, after_pt=10)
+        p_div_border = parse_xml(f'<w:pBdr {nsdecls("w")}><w:bottom w:val="single" w:sz="6" w:space="1" w:color="1F4E79"/></w:pBdr>')
+        p_div._p.get_or_add_pPr().append(p_div_border)
 
     # 2. Document Title
     p_title = doc.add_paragraph()
@@ -616,10 +653,9 @@ def compile_docx(output_path, data, gemini_content, logo_path):
     set_table_margins(table_usage, top=80, bottom=80, left=120, right=120)
 
     col_widths_usage = [Inches(2.0), Inches(1.3), Inches(3.47)]
-    headers_usage = ["Parameter Penggunaan", "Jumlah / Volume", "Keterangan"]
     usage_rows = [
         ("Chat Sessions", format_id(data['chat_sessions']), "Sesi percakapan unik yang diinisiasi oleh pengguna."),
-        ("Billing Sessions", format_id(data['billing_sessions']), "Jendela billing percakapan."),
+        ("Billing Sessions", format_id(data['billing_sessions']), "Sesi billing percakapan."),
         ("Total Input Tokens", format_id(data['input_tokens']), "Jumlah token input yang dikirim ke model AI."),
         ("Total Output Tokens", format_id(data['output_tokens']), "Jumlah token output yang dihasilkan oleh model AI.")
     ]

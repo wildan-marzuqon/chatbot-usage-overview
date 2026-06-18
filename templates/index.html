@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYGMA AI Chatbot Report Generator</title>
+    <title>SYGMA Chatbot Usage Report Generator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -11,17 +11,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <!-- Background glowing shapes -->
-    <div class="bg-glow bg-glow-1"></div>
-    <div class="bg-glow bg-glow-2"></div>
-    <div class="bg-glow bg-glow-3"></div>
-
     <header class="header">
         <div class="header-container">
             <div class="logo-area">
                 <span class="logo-icon"><i class="fa-solid fa-robot"></i></span>
                 <div>
-                    <h1 id="main-title">SYGMA Chatbot Report Generator</h1>
+                    <h1 id="main-title">SYGMA Chatbot Usage Report Generator</h1>
                     <p class="subtitle">Platform Ringkasan Laporan Usage Bulanan AI Chatbot & Generator DOCX Otomatis</p>
                 </div>
             </div>
@@ -35,48 +30,99 @@
             <section class="panel glass-card" id="config-panel" aria-labelledby="config-heading">
                 <h2 id="config-heading" class="panel-title"><i class="fa-solid fa-sliders text-gradient"></i> Konfigurasi & Upload</h2>
                 
-                <!-- API Key Section -->
-                <div class="form-group">
-                    <label for="api-key" class="form-label">
-                        <span>Gemini API Key</span>
-                        <span class="label-hint">Disimpan secara lokal di browser Anda</span>
+                <!-- AI Switch / Toggle -->
+                <div class="form-group toggle-group">
+                    <label class="toggle-switch-label" for="use-ai-toggle">
+                        <span class="toggle-text-main">Aktifkan Analisis AI (LLM)</span>
+                        <span class="toggle-desc">Hubungkan API key untuk generate cover letter & insight kustom</span>
                     </label>
-                    <div class="input-with-icon">
-                        <i class="fa-solid fa-key input-left-icon"></i>
-                        <input type="password" id="api-key" placeholder="Masukkan Gemini API Key (Kosongkan untuk fallback offline)" class="form-input">
-                        <button type="button" id="toggle-api-key" class="input-right-btn" aria-label="Tampilkan API Key">
-                            <i class="fa-solid fa-eye"></i>
-                        </button>
+                    <label class="switch">
+                        <input type="checkbox" id="use-ai-toggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <!-- AI Configurations Container (Toggled) -->
+                <div id="ai-config-section" class="ai-config-container">
+                    <!-- Provider Selection -->
+                    <div class="form-group">
+                        <label class="form-label">Provider AI</label>
+                        <div class="provider-selector">
+                            <label class="provider-option active">
+                                <input type="radio" name="ai-provider" value="gemini" checked>
+                                <i class="fa-solid fa-gemini"></i> Gemini API
+                            </label>
+                            <label class="provider-option">
+                                <input type="radio" name="ai-provider" value="openrouter">
+                                <i class="fa-solid fa-network-wired"></i> OpenRouter
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- API Key Section -->
+                    <div class="form-group">
+                        <label for="api-key" class="form-label">
+                            <span id="api-key-label">Gemini API Key</span>
+                            <span class="label-hint">Disimpan secara lokal di browser Anda</span>
+                        </label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-key input-left-icon"></i>
+                            <input type="password" id="api-key" placeholder="Masukkan Gemini API Key" class="form-input">
+                            <button type="button" id="toggle-api-key" class="input-right-btn" aria-label="Tampilkan API Key">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Gemini Model Selection (Toggled) -->
+                    <div class="form-group" id="gemini-model-group">
+                        <label for="gemini-model" class="form-label">Gemini Model Plan</label>
+                        <div class="select-wrapper">
+                            <select id="gemini-model" class="form-input">
+                                <option value="gemini-1.5-flash" selected>Gemini 1.5 Flash (Medium - Rekomendasi Cepat)</option>
+                                <option value="gemini-1.5-pro">Gemini 1.5 Pro (High - Analisis Lebih Kompleks)</option>
+                                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Terbaru)</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down select-arrow"></i>
+                        </div>
+                    </div>
+
+                    <!-- OpenRouter Model Free Text (Toggled) -->
+                    <div class="form-group hidden" id="openrouter-model-group">
+                        <label for="openrouter-model" class="form-label">
+                            <span>OpenRouter Model Name</span>
+                            <span class="label-hint">Free text (Contoh: google/gemini-2.5-flash)</span>
+                        </label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-microchip input-left-icon"></i>
+                            <input type="text" id="openrouter-model" value="google/gemini-2.5-flash" placeholder="e.g. google/gemini-2.5-flash" class="form-input" style="padding-left: 2.5rem;">
+                        </div>
                     </div>
                 </div>
 
-                <!-- Model Selection -->
-                <div class="form-group">
-                    <label for="gemini-model" class="form-label">Gemini Model Plan</label>
-                    <div class="select-wrapper">
-                        <select id="gemini-model" class="form-input">
-                            <option value="gemini-1.5-flash" selected>Gemini 1.5 Flash (Medium - Rekomendasi Cepat)</option>
-                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (High - Analisis Lebih Kompleks)</option>
-                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Terbaru)</option>
-                        </select>
-                        <i class="fa-solid fa-chevron-down select-arrow"></i>
-                    </div>
+                <!-- Document Layout & Styling Toggles -->
+                <div class="form-group toggle-group" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <label class="toggle-switch-label" for="enable-header-checkbox">
+                        <span class="toggle-text-main">Sertakan Kop Surat</span>
+                        <span class="toggle-desc">Menyertakan Logo Adira Finance & garis pembatas biru</span>
+                    </label>
+                    <label class="switch">
+                        <input type="checkbox" id="enable-header-checkbox" checked>
+                        <span class="slider round"></span>
+                    </label>
                 </div>
 
                 <!-- File Upload Areas -->
-                <div class="form-group">
+                <div class="form-group" style="margin-top: 1rem;">
                     <label class="form-label">Monthly Usage Report (.xlsx) <span class="required">*</span></label>
                     <div class="drop-zone" id="drop-zone-usage">
-                        <input type="file" id="file-usage" accept=".xlsx" class="file-input">
+                        <input type="file" id="file-usage" accept=".xlsx" class="file-input" multiple>
                         <i class="fa-solid fa-file-excel drop-icon text-gradient"></i>
                         <p class="drop-text">Seret & taruh file Excel di sini atau <span>klik untuk menelusuri</span></p>
-                        <p class="drop-subtext">Hanya file Excel (.xlsx) dengan tab Summary, Chat Session, dan Billing Session</p>
+                        <p class="drop-subtext">Mendukung multi-upload beberapa file Excel sekaligus</p>
                     </div>
-                    <div class="file-details" id="details-usage">
-                        <i class="fa-solid fa-circle-check text-success"></i>
-                        <span class="file-name">filename.xlsx</span>
-                        <button type="button" class="remove-file-btn" id="remove-usage" aria-label="Hapus file usage"><i class="fa-solid fa-xmark"></i></button>
-                    </div>
+                    <!-- Uploaded file items lists -->
+                    <div id="uploaded-files-list" class="uploaded-files-list"></div>
                 </div>
 
                 <div class="form-group">
@@ -115,14 +161,23 @@
 
                 <!-- Action Button -->
                 <button type="button" id="btn-generate" class="btn btn-primary btn-block" disabled>
-                    <span class="btn-text"><i class="fa-solid fa-file-word"></i> Generate DOCX Report</span>
+                    <span class="btn-text"><i class="fa-solid fa-file-word"></i> Generate Laporan</span>
                     <div class="btn-spinner hidden"><i class="fa-solid fa-circle-notch fa-spin"></i> Memproses...</div>
                 </button>
             </section>
 
             <!-- Right Panel: Live Stats Preview and Download Output -->
             <section class="panel glass-card hidden-preview" id="preview-panel" aria-labelledby="preview-heading">
-                <h2 id="preview-heading" class="panel-title"><i class="fa-solid fa-chart-line text-gradient"></i> Data Preview & Output</h2>
+                <div class="preview-header-area">
+                    <h2 id="preview-heading" class="panel-title" style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">
+                        <i class="fa-solid fa-chart-line text-gradient"></i> Data Preview & Output
+                    </h2>
+                </div>
+
+                <!-- Multiple files navigation tabs -->
+                <div class="preview-tabs" id="preview-tabs-container">
+                    <!-- Dynamic tabs button list will go here -->
+                </div>
                 
                 <div class="preview-content">
                     <!-- Extracted Metadata Header -->
@@ -144,28 +199,28 @@
                     <!-- Usage Stats Grid -->
                     <div class="stats-grid">
                         <div class="stat-card">
-                            <div class="stat-icon bg-blue-trans"><i class="fa-solid fa-comments"></i></div>
+                            <div class="stat-icon bg-blue-trans"><i class="fa-comments"></i></div>
                             <div class="stat-info">
                                 <span class="stat-label">Chat Sessions</span>
                                 <span class="stat-value" id="stat-chat">0</span>
                             </div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-icon bg-indigo-trans"><i class="fa-solid fa-receipt"></i></div>
+                            <div class="stat-icon bg-indigo-trans"><i class="fa-receipt"></i></div>
                             <div class="stat-info">
                                 <span class="stat-label">Billing Sessions</span>
                                 <span class="stat-value" id="stat-billing">0</span>
                             </div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-icon bg-green-trans"><i class="fa-solid fa-arrow-right-to-bracket"></i></div>
+                            <div class="stat-icon bg-green-trans"><i class="fa-arrow-right-to-bracket"></i></div>
                             <div class="stat-info">
                                 <span class="stat-label">Total Input Tokens</span>
                                 <span class="stat-value" id="stat-input">0</span>
                             </div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-icon bg-yellow-trans"><i class="fa-solid fa-arrow-right-from-bracket"></i></div>
+                            <div class="stat-icon bg-yellow-trans"><i class="fa-arrow-right-from-bracket"></i></div>
                             <div class="stat-info">
                                 <span class="stat-label">Total Output Tokens</span>
                                 <span class="stat-value" id="stat-output">0</span>
@@ -191,6 +246,18 @@
                         </div>
                     </div>
 
+                    <!-- Filename Customization for Current File -->
+                    <div class="form-group filename-edit-group">
+                        <label for="output-filename" class="form-label">
+                            <span>Nama File Output (.docx)</span>
+                            <span class="label-hint">Nama file kustom untuk divisi ini</span>
+                        </label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-file-word input-left-icon" style="color: var(--color-primary)"></i>
+                            <input type="text" id="output-filename" placeholder="Nama File Laporan" class="form-input" style="padding-left: 2.5rem;">
+                        </div>
+                    </div>
+
                     <!-- Progress timeline (shown during DOCX generation) -->
                     <div class="timeline-box hidden" id="generation-timeline">
                         <h3 class="timeline-title">Log Progres Pembuatan Dokumen</h3>
@@ -201,7 +268,7 @@
                             </li>
                             <li class="timeline-item" id="step-2">
                                 <span class="step-bullet"><i class="fa-solid fa-circle-dot"></i></span>
-                                <span class="step-text">Menghubungi Gemini API untuk analisis kustom...</span>
+                                <span class="step-text">Menghubungi Gemini/OpenRouter API...</span>
                             </li>
                             <li class="timeline-item" id="step-3">
                                 <span class="step-bullet"><i class="fa-solid fa-circle-dot"></i></span>
@@ -210,13 +277,16 @@
                         </ul>
                     </div>
 
-                    <!-- Download Section -->
+                    <!-- Individual File Download Section -->
                     <div class="download-card hidden" id="download-area">
                         <div class="download-icon-box"><i class="fa-solid fa-circle-down animated-bounce"></i></div>
-                        <div class="download-info">
-                            <h4>Laporan Anda Telah Siap!</h4>
-                            <p>File Word (.docx) berhasil dihasilkan dengan gaya persetujuan Adira Finance yang rapi dan analisis Gemini AI yang kustom.</p>
-                            <a href="#" id="btn-download" class="btn btn-success"><i class="fa-solid fa-download"></i> Unduh File Laporan (.docx)</a>
+                        <div class="download-info" style="flex: 1;">
+                            <h4 id="download-title">Laporan Anda Telah Siap!</h4>
+                            <p id="download-desc">File Word (.docx) berhasil dihasilkan dengan gaya persetujuan yang rapi.</p>
+                            <div class="download-buttons-row">
+                                <a href="#" id="btn-download" class="btn btn-success"><i class="fa-solid fa-download"></i> Unduh Laporan Ini (.docx)</a>
+                                <button type="button" id="btn-download-all" class="btn btn-primary hidden"><i class="fa-solid fa-file-zipper"></i> Unduh Semua (.zip)</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -225,7 +295,7 @@
     </main>
 
     <footer class="footer">
-        <p>&copy; 2026 PT Adira Dinamika Multi Finance Tbk & PT Bumi Amartha Teknologi Mandiri. Hak Cipta Dilindungi.</p>
+        <p>&copy; 2026 PT Cakra Tekno Nusantara. Hak Cipta Dilindungi.</p>
     </footer>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
