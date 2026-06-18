@@ -790,7 +790,7 @@ def compile_docx(output_path, data, gemini_content, logo_path, enable_header=Tru
     format_run(r, font_name="Arial", size_pt=11, color_rgb=RGBColor(31, 78, 121), bold=True)
 
     p_att = doc.add_paragraph()
-    p_att.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_att.alignment = WD_ALIGN_PARAGRAPH.LEFT
     set_para_spacing(p_att, before_pt=0, after_pt=6)
     r_att = p_att.add_run(
         f"Rincian lengkap dari seluruh interaksi chatbot terlampir secara terpisah pada spreadsheet {data['xlsx_filename']}:\n"
