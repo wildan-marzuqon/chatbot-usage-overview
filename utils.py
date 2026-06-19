@@ -10,6 +10,47 @@ from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 from docx.oxml import parse_xml, OxmlElement
 from docx.oxml.ns import nsdecls, qn
 
+def extract_month_year(period):
+    if not period:
+        return "Laporan"
+    period_parts = period.split()
+    months_id = {
+        "january": "Januari", "february": "Februari", "march": "Maret", "april": "April",
+        "may": "Mei", "june": "Juni", "july": "Juli", "august": "Agustus",
+        "september": "September", "october": "Oktober", "november": "November", "december": "Desember",
+        "jan": "Januari", "feb": "Februari", "mar": "Maret", "apr": "April",
+        "jun": "Juni", "jul": "Juli", "aug": "Agustus", "sep": "September",
+        "oct": "Oktober", "nov": "November", "dec": "Desember",
+        "oktober": "Oktober", "desember": "Desember", "maret": "Maret", "mei": "Mei", "juni": "Juni"
+    }
+    
+    if len(period_parts) >= 7:
+        m_lower = period_parts[5].lower()
+        m_id = months_id.get(m_lower, period_parts[5])
+        return f"{m_id} {period_parts[6]}"
+    
+    # Fallback search
+    found_month = ""
+    found_year = ""
+    for part in period_parts:
+        clean = "".join([c for c in part.lower() if c.isalpha()])
+        if clean in months_id:
+            found_month = months_id[clean]
+        elif clean.capitalize() in months_id.values():
+            found_month = clean.capitalize()
+        
+        num = "".join([c for c in part if c.isdigit()])
+        if len(num) == 4:
+            found_year = num
+            
+    if found_month and found_year:
+        return f"{found_month} {found_year}"
+    elif found_month:
+        return found_month
+    elif found_year:
+        return found_year
+    return period
+
 def format_id(num):
     if num is None:
         return "-"
@@ -447,7 +488,7 @@ def compile_docx(output_path, data, gemini_content, logo_path, enable_header=Tru
     
     p = table_meta.cell(0, 1).paragraphs[0]
     set_para_spacing(p, after_pt=2)
-    month_name = data['period'].split()[-1] if len(data['period'].split()) > 2 else "Laporan"
+    month_name = extract_month_year(data['period'])
     r = p.add_run(f":  {month_name}")
     format_run(r, font_name="Arial", size_pt=9.5)
     
